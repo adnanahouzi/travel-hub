@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/booking-api/booking-api.iml" filepath="$PROJECT_DIR$/booking-api/booking-api.iml" />
+      <module fileurl="file://$PROJECT_DIR$/connectors/connectors.iml" filepath="$PROJECT_DIR$/connectors/connectors.iml" />
+      <module fileurl="file://$PROJECT_DIR$/connectors/nuitee-connector/nuitee-connector.iml" filepath="$PROJECT_DIR$/connectors/nuitee-connector/nuitee-connector.iml" />
+      <module fileurl="file://$PROJECT_DIR$/travel-hub.iml" filepath="$PROJECT_DIR$/travel-hub.iml" />
+    </modules>
+  </component>
+</project>

@@ -1,0 +1,21 @@
+spring:
+  application:
+    name: travel-hub
+
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+
+travelhub:
+  connectors:
+    nuitee:
+      base-url: https://api.liteapi.travel/v3.0
+      api-key: sand_5e58b637-d99c-483d-b20c-935dbad04458
+      public-key: 134b4eff-72e4-4ee6-905a-9d372303dd83
+      connect-timeout: 5s
+      read-timeout: 10s
+      max-total-connections: 200
+      max-connections-per-route: 50
