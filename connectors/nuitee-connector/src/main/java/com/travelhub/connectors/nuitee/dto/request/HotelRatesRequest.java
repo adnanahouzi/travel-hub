@@ -15,18 +15,18 @@ public class HotelRatesRequest {
 
     // Search Methods (One of these sets is usually required)
     private List<String> hotelIds;
-    
+
     private String countryCode;
     private String cityName;
-    
+
     private BigDecimal latitude;
     private BigDecimal longitude;
     private Integer radius; // In meters
-    
+
     private String iataCode;
-    
+
     private String placeId;
-    
+
     private String aiSearch; // Natural language query
 
     // Filters & Options
@@ -36,7 +36,7 @@ public class HotelRatesRequest {
     private Integer offset;
     private Boolean weatherInfo;
     private Boolean stream;
-    
+
     private String hotelName;
     private Integer minReviewsCount;
     private BigDecimal minRating;
@@ -44,8 +44,9 @@ public class HotelRatesRequest {
     private List<Integer> starRating;
     private List<String> facilities;
     private Boolean strictFacilityFiltering;
-    private final Boolean includeHotelData =true;
+    private final Boolean includeHotelData = true;
     private Integer maxRatesPerHotel;
+    private List<com.travelhub.connectors.nuitee.dto.common.SortCriteria> sort;
 
     public List<Occupancy> getOccupancies() {
         return occupancies;
@@ -273,5 +274,13 @@ public class HotelRatesRequest {
 
     public void setMaxRatesPerHotel(Integer maxRatesPerHotel) {
         this.maxRatesPerHotel = maxRatesPerHotel;
+    }
+
+    public List<com.travelhub.connectors.nuitee.dto.common.SortCriteria> getSort() {
+        return sort;
+    }
+
+    public void setSort(List<com.travelhub.connectors.nuitee.dto.common.SortCriteria> sort) {
+        this.sort = sort;
     }
 }

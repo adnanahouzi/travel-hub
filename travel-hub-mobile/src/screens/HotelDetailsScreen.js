@@ -479,13 +479,13 @@ export const HotelDetailsScreen = ({ navigation }) => {
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>Avis</Text>
                 <TouchableOpacity onPress={() => setShowReviewsModal(true)}>
-                  <Text style={styles.seeAllText}>Lire les {reviews.total || reviews.data.length} avis</Text>
+                  <Text style={styles.seeAllText}>Tout afficher</Text>
                 </TouchableOpacity>
               </View>
 
               <View style={styles.reviewCard}>
                 <View style={styles.reviewScoreBox}>
-                  <Text style={styles.reviewScore}>{(hotel.rating || 0).toFixed ? hotel.rating.toFixed(1) : (hotel.rating || 0)}</Text>
+                  <Text style={styles.reviewScore}>{(hotel.rating || 0).toFixed ? hotel.rating.toFixed(1).replace('.', ',') : (hotel.rating || 0)}</Text>
                 </View>
                 <View>
                   <Text style={styles.reviewLabel}>
@@ -497,16 +497,21 @@ export const HotelDetailsScreen = ({ navigation }) => {
                 </View>
               </View>
 
-              {/* Positive Highlights from Sentiment Analysis */}
-              {reviews.sentimentAnalysis?.pros && reviews.sentimentAnalysis.pros.length > 0 && (
+              {/* Category Scores as Pills */}
+              {reviews.sentimentAnalysis?.categories && reviews.sentimentAnalysis.categories.length > 0 && (
                 <>
                   <Text style={styles.subSectionTitle}>Les éléments les plus appréciés</Text>
                   <View style={styles.highlightsGrid}>
-                    {reviews.sentimentAnalysis.pros.slice(0, 6).map((pro, i) => (
-                      <View key={i} style={styles.highlightPill}>
-                        <Text style={styles.highlightText}>{pro}</Text>
-                      </View>
-                    ))}
+                    {reviews.sentimentAnalysis.categories.map((category, i) => {
+                      const rating = parseFloat(category.rating || 0);
+                      return (
+                        <View key={i} style={styles.highlightPill}>
+                          <Text style={styles.highlightText}>
+                            {category.name} ({rating.toFixed(1).replace('.', ',')})
+                          </Text>
+                        </View>
+                      );
+                    })}
                   </View>
                 </>
               )}
@@ -553,35 +558,7 @@ export const HotelDetailsScreen = ({ navigation }) => {
                 ) : null;
               })()}
 
-              {/* Categories from Sentiment Analysis */}
-              {reviews.sentimentAnalysis?.categories && reviews.sentimentAnalysis.categories.length > 0 && (
-                <>
-                  <Text style={[styles.subSectionTitle, { marginTop: 24 }]}>Catégories d'avis</Text>
-                  <View style={styles.categoriesGrid}>
-                    {reviews.sentimentAnalysis.categories.map((category, i) => {
-                      const rating = parseFloat(category.rating || 0);
-                      const color = rating >= 8 ? '#10B981' : rating >= 6 ? '#F59E0B' : '#EF4444';
 
-                      return (
-                        <View key={i} style={styles.categoryItem}>
-                          <View style={styles.categoryHeader}>
-                            <Text style={styles.categoryLabel}>{category.name}</Text>
-                            <Text style={styles.categoryScore}>{rating.toFixed(1)}</Text>
-                          </View>
-                          <View style={styles.progressBarBg}>
-                            <View
-                              style={[
-                                styles.progressBarFill,
-                                { width: `${(rating / 10) * 100}%`, backgroundColor: color }
-                              ]}
-                            />
-                          </View>
-                        </View>
-                      );
-                    })}
-                  </View>
-                </>
-              )}
             </View>
           )}
         </View>
@@ -1197,7 +1174,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#EDE9FE',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 8,

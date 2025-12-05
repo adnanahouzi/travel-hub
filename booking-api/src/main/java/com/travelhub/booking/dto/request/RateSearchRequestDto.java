@@ -31,7 +31,7 @@ public class RateSearchRequestDto {
     private Integer offset;
     private Boolean weatherInfo;
     private Boolean stream;
-    
+
     private String hotelName;
     private Integer minReviewsCount;
     private BigDecimal minRating;
@@ -39,87 +39,230 @@ public class RateSearchRequestDto {
     private List<Integer> starRating;
     private List<String> facilities;
     private Boolean strictFacilityFiltering;
+    private List<com.travelhub.booking.dto.common.SortCriteriaDto> sort;
 
     // Getters and Setters
-    public List<Occupancy> getOccupancies() { return occupancies; }
-    public void setOccupancies(List<Occupancy> occupancies) { this.occupancies = occupancies; }
+    public List<Occupancy> getOccupancies() {
+        return occupancies;
+    }
 
-    public String getCurrency() { return currency; }
-    public void setCurrency(String currency) { this.currency = currency; }
+    public void setOccupancies(List<Occupancy> occupancies) {
+        this.occupancies = occupancies;
+    }
 
-    public String getGuestNationality() { return guestNationality; }
-    public void setGuestNationality(String guestNationality) { this.guestNationality = guestNationality; }
+    public String getCurrency() {
+        return currency;
+    }
 
-    public LocalDate getCheckin() { return checkin; }
-    public void setCheckin(LocalDate checkin) { this.checkin = checkin; }
+    public void setCurrency(String currency) {
+        this.currency = currency;
+    }
 
-    public LocalDate getCheckout() { return checkout; }
-    public void setCheckout(LocalDate checkout) { this.checkout = checkout; }
+    public String getGuestNationality() {
+        return guestNationality;
+    }
 
-    public List<String> getHotelIds() { return hotelIds; }
-    public void setHotelIds(List<String> hotelIds) { this.hotelIds = hotelIds; }
+    public void setGuestNationality(String guestNationality) {
+        this.guestNationality = guestNationality;
+    }
 
-    public String getCountryCode() { return countryCode; }
-    public void setCountryCode(String countryCode) { this.countryCode = countryCode; }
+    public LocalDate getCheckin() {
+        return checkin;
+    }
 
-    public String getCityName() { return cityName; }
-    public void setCityName(String cityName) { this.cityName = cityName; }
+    public void setCheckin(LocalDate checkin) {
+        this.checkin = checkin;
+    }
 
-    public BigDecimal getLatitude() { return latitude; }
-    public void setLatitude(BigDecimal latitude) { this.latitude = latitude; }
+    public LocalDate getCheckout() {
+        return checkout;
+    }
 
-    public BigDecimal getLongitude() { return longitude; }
-    public void setLongitude(BigDecimal longitude) { this.longitude = longitude; }
+    public void setCheckout(LocalDate checkout) {
+        this.checkout = checkout;
+    }
 
-    public Integer getRadius() { return radius; }
-    public void setRadius(Integer radius) { this.radius = radius; }
+    public List<String> getHotelIds() {
+        return hotelIds;
+    }
 
-    public String getIataCode() { return iataCode; }
-    public void setIataCode(String iataCode) { this.iataCode = iataCode; }
+    public void setHotelIds(List<String> hotelIds) {
+        this.hotelIds = hotelIds;
+    }
 
-    public String getPlaceId() { return placeId; }
-    public void setPlaceId(String placeId) { this.placeId = placeId; }
+    public String getCountryCode() {
+        return countryCode;
+    }
 
-    public String getAiSearch() { return aiSearch; }
-    public void setAiSearch(String aiSearch) { this.aiSearch = aiSearch; }
+    public void setCountryCode(String countryCode) {
+        this.countryCode = countryCode;
+    }
 
-    public Integer getTimeout() { return timeout; }
-    public void setTimeout(Integer timeout) { this.timeout = timeout; }
+    public String getCityName() {
+        return cityName;
+    }
 
-    public Boolean getRoomMapping() { return roomMapping; }
-    public void setRoomMapping(Boolean roomMapping) { this.roomMapping = roomMapping; }
+    public void setCityName(String cityName) {
+        this.cityName = cityName;
+    }
 
-    public Integer getLimit() { return limit; }
-    public void setLimit(Integer limit) { this.limit = limit; }
+    public BigDecimal getLatitude() {
+        return latitude;
+    }
 
-    public Integer getOffset() { return offset; }
-    public void setOffset(Integer offset) { this.offset = offset; }
+    public void setLatitude(BigDecimal latitude) {
+        this.latitude = latitude;
+    }
 
-    public Boolean getWeatherInfo() { return weatherInfo; }
-    public void setWeatherInfo(Boolean weatherInfo) { this.weatherInfo = weatherInfo; }
+    public BigDecimal getLongitude() {
+        return longitude;
+    }
 
-    public Boolean getStream() { return stream; }
-    public void setStream(Boolean stream) { this.stream = stream; }
+    public void setLongitude(BigDecimal longitude) {
+        this.longitude = longitude;
+    }
 
-    public String getHotelName() { return hotelName; }
-    public void setHotelName(String hotelName) { this.hotelName = hotelName; }
+    public Integer getRadius() {
+        return radius;
+    }
 
-    public Integer getMinReviewsCount() { return minReviewsCount; }
-    public void setMinReviewsCount(Integer minReviewsCount) { this.minReviewsCount = minReviewsCount; }
+    public void setRadius(Integer radius) {
+        this.radius = radius;
+    }
 
-    public BigDecimal getMinRating() { return minRating; }
-    public void setMinRating(BigDecimal minRating) { this.minRating = minRating; }
+    public String getIataCode() {
+        return iataCode;
+    }
 
-    public String getZip() { return zip; }
-    public void setZip(String zip) { this.zip = zip; }
+    public void setIataCode(String iataCode) {
+        this.iataCode = iataCode;
+    }
 
-    public List<Integer> getStarRating() { return starRating; }
-    public void setStarRating(List<Integer> starRating) { this.starRating = starRating; }
+    public String getPlaceId() {
+        return placeId;
+    }
 
-    public List<String> getFacilities() { return facilities; }
-    public void setFacilities(List<String> facilities) { this.facilities = facilities; }
+    public void setPlaceId(String placeId) {
+        this.placeId = placeId;
+    }
 
-    public Boolean getStrictFacilityFiltering() { return strictFacilityFiltering; }
-    public void setStrictFacilityFiltering(Boolean strictFacilityFiltering) { this.strictFacilityFiltering = strictFacilityFiltering; }
+    public String getAiSearch() {
+        return aiSearch;
+    }
+
+    public void setAiSearch(String aiSearch) {
+        this.aiSearch = aiSearch;
+    }
+
+    public Integer getTimeout() {
+        return timeout;
+    }
+
+    public void setTimeout(Integer timeout) {
+        this.timeout = timeout;
+    }
+
+    public Boolean getRoomMapping() {
+        return roomMapping;
+    }
+
+    public void setRoomMapping(Boolean roomMapping) {
+        this.roomMapping = roomMapping;
+    }
+
+    public Integer getLimit() {
+        return limit;
+    }
+
+    public void setLimit(Integer limit) {
+        this.limit = limit;
+    }
+
+    public Integer getOffset() {
+        return offset;
+    }
+
+    public void setOffset(Integer offset) {
+        this.offset = offset;
+    }
+
+    public Boolean getWeatherInfo() {
+        return weatherInfo;
+    }
+
+    public void setWeatherInfo(Boolean weatherInfo) {
+        this.weatherInfo = weatherInfo;
+    }
+
+    public Boolean getStream() {
+        return stream;
+    }
+
+    public void setStream(Boolean stream) {
+        this.stream = stream;
+    }
+
+    public String getHotelName() {
+        return hotelName;
+    }
+
+    public void setHotelName(String hotelName) {
+        this.hotelName = hotelName;
+    }
+
+    public Integer getMinReviewsCount() {
+        return minReviewsCount;
+    }
+
+    public void setMinReviewsCount(Integer minReviewsCount) {
+        this.minReviewsCount = minReviewsCount;
+    }
+
+    public BigDecimal getMinRating() {
+        return minRating;
+    }
+
+    public void setMinRating(BigDecimal minRating) {
+        this.minRating = minRating;
+    }
+
+    public String getZip() {
+        return zip;
+    }
+
+    public void setZip(String zip) {
+        this.zip = zip;
+    }
+
+    public List<Integer> getStarRating() {
+        return starRating;
+    }
+
+    public void setStarRating(List<Integer> starRating) {
+        this.starRating = starRating;
+    }
+
+    public List<String> getFacilities() {
+        return facilities;
+    }
+
+    public void setFacilities(List<String> facilities) {
+        this.facilities = facilities;
+    }
+
+    public Boolean getStrictFacilityFiltering() {
+        return strictFacilityFiltering;
+    }
+
+    public void setStrictFacilityFiltering(Boolean strictFacilityFiltering) {
+        this.strictFacilityFiltering = strictFacilityFiltering;
+    }
+
+    public List<com.travelhub.booking.dto.common.SortCriteriaDto> getSort() {
+        return sort;
+    }
+
+    public void setSort(List<com.travelhub.booking.dto.common.SortCriteriaDto> sort) {
+        this.sort = sort;
+    }
 }
-

@@ -26,14 +26,14 @@ const { width, height } = Dimensions.get('window');
 
 export const SearchScreen = ({ navigation }) => {
   const { updateSearchParams, setSearchResults, setTotalResults, setLoading, loading, setSelectedHotel } = useBooking();
-  
+
   // Search State
   const [destination, setDestination] = useState('');
   const [places, setPlaces] = useState([]);
   const [showPlaces, setShowPlaces] = useState(false);
   const [placeId, setPlaceId] = useState(null);
   const [placeName, setPlaceName] = useState('');
-  
+
   // Date State
   const [checkinDate, setCheckinDate] = useState(addDays(new Date(), 1));
   const [checkoutDate, setCheckoutDate] = useState(addDays(new Date(), 7));
@@ -126,9 +126,15 @@ export const SearchScreen = ({ navigation }) => {
         occupancies: occupancies,
         guestNationality: 'MA',
         currency: 'MAD',
-        limit: 5,
+        limit: 50,
         offset: 0, // Start from beginning
         roomMapping: false,
+        sort: [
+          {
+            field: 'top_picks',
+            direction: 'ascending'
+          }
+        ]
       };
 
       const results = await ApiService.searchRates(searchRequest);
@@ -236,7 +242,7 @@ export const SearchScreen = ({ navigation }) => {
         >
           <View style={styles.heroOverlay}>
             <Text style={styles.heroTitle}>Planifiez votre{'\n'}hébergement</Text>
-            
+
             {/* Top Action Buttons */}
             <View style={styles.topActions}>
               <TouchableOpacity style={[styles.actionButton, styles.actionButtonActive]}>
@@ -287,7 +293,7 @@ export const SearchScreen = ({ navigation }) => {
               <View style={styles.divider} />
 
               {/* Date and Duration */}
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.searchRow}
                 onPress={() => {
                   setSelectingCheckout(false);
@@ -310,7 +316,7 @@ export const SearchScreen = ({ navigation }) => {
               <View style={styles.divider} />
 
               {/* Guests */}
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.searchRow}
                 onPress={() => setShowGuestPicker(true)}
               >
@@ -324,7 +330,7 @@ export const SearchScreen = ({ navigation }) => {
               </TouchableOpacity>
 
               {/* Search Button */}
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.searchButton}
                 onPress={searchHotels}
                 disabled={loading}
@@ -338,8 +344,8 @@ export const SearchScreen = ({ navigation }) => {
         </ImageBackground>
 
         {/* Categories */}
-        <ScrollView 
-          horizontal 
+        <ScrollView
+          horizontal
           showsHorizontalScrollIndicator={false}
           style={styles.categoriesContainer}
           contentContainerStyle={styles.categoriesContent}
@@ -353,9 +359,9 @@ export const SearchScreen = ({ navigation }) => {
               ]}
               onPress={() => setActiveCategory(category.id)}
             >
-              <Ionicons 
-                name={category.icon} 
-                size={20} 
+              <Ionicons
+                name={category.icon}
+                size={20}
                 color={activeCategory === category.id ? '#1F2937' : '#6B7280'}
               />
               <Text style={[
@@ -383,7 +389,7 @@ export const SearchScreen = ({ navigation }) => {
             contentContainerStyle={styles.nearbyHotelsScroll}
           >
             {nearbyHotels.map((hotel) => (
-              <TouchableOpacity 
+              <TouchableOpacity
                 key={hotel.id}
                 style={styles.nearbyHotelCard}
                 onPress={() => {
@@ -391,7 +397,7 @@ export const SearchScreen = ({ navigation }) => {
                   navigation.navigate('HotelDetails');
                 }}
               >
-                <Image 
+                <Image
                   source={{ uri: hotel.image }}
                   style={styles.nearbyHotelImage}
                 />
@@ -450,7 +456,7 @@ export const SearchScreen = ({ navigation }) => {
 
             {renderCalendar()}
 
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.calendarDoneButton}
               onPress={() => setShowCalendarModal(false)}
             >
@@ -479,14 +485,14 @@ export const SearchScreen = ({ navigation }) => {
             <View style={styles.guestRow}>
               <Text style={styles.guestLabel}>Chambres</Text>
               <View style={styles.guestCounter}>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.guestButton}
                   onPress={() => setRooms(Math.max(1, rooms - 1))}
                 >
                   <Ionicons name="remove" size={20} color="#1F2937" />
                 </TouchableOpacity>
                 <Text style={styles.guestValue}>{rooms}</Text>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.guestButton}
                   onPress={() => setRooms(rooms + 1)}
                 >
@@ -498,14 +504,14 @@ export const SearchScreen = ({ navigation }) => {
             <View style={styles.guestRow}>
               <Text style={styles.guestLabel}>Adultes</Text>
               <View style={styles.guestCounter}>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.guestButton}
                   onPress={() => setAdults(Math.max(1, adults - 1))}
                 >
                   <Ionicons name="remove" size={20} color="#1F2937" />
                 </TouchableOpacity>
                 <Text style={styles.guestValue}>{adults}</Text>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.guestButton}
                   onPress={() => setAdults(adults + 1)}
                 >
@@ -517,14 +523,14 @@ export const SearchScreen = ({ navigation }) => {
             <View style={styles.guestRow}>
               <Text style={styles.guestLabel}>Enfants</Text>
               <View style={styles.guestCounter}>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.guestButton}
                   onPress={() => setChildren(Math.max(0, children - 1))}
                 >
                   <Ionicons name="remove" size={20} color="#1F2937" />
                 </TouchableOpacity>
                 <Text style={styles.guestValue}>{children}</Text>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.guestButton}
                   onPress={() => setChildren(children + 1)}
                 >
@@ -533,7 +539,7 @@ export const SearchScreen = ({ navigation }) => {
               </View>
             </View>
 
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.guestDoneButton}
               onPress={() => setShowGuestPicker(false)}
             >

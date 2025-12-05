@@ -37,11 +37,12 @@ public class BookingMapper {
     }
 
     // Hotel rate mapping methods
-    public HotelRateResponseDto toHotelRateResponseDto(HotelData hotelData, List<com.travelhub.connectors.nuitee.dto.response.RoomType> roomTypes) {
+    public HotelRateResponseDto toHotelRateResponseDto(HotelData hotelData,
+            List<com.travelhub.connectors.nuitee.dto.response.RoomType> roomTypes) {
         if (hotelData == null) {
             return null;
         }
-        
+
         HotelRateResponseDto response = new HotelRateResponseDto();
         response.setHotelId(hotelData.getId());
         response.setName(hotelData.getName());
@@ -62,10 +63,10 @@ public class BookingMapper {
         response.setPhone(hotelData.getPhone());
         response.setEmail(hotelData.getEmail());
         response.setCheckinCheckoutTimes(toCheckinCheckoutTimesDto(hotelData.getCheckinCheckoutTimes()));
-        
+
         // Map rates and enrich with room details from hotel data
         response.setRates(enrichRatesWithRoomDetails(roomTypes, hotelData.getRooms()));
-        
+
         return response;
     }
 
@@ -109,11 +110,12 @@ public class BookingMapper {
         return dto;
     }
 
-    private List<RateDto> enrichRatesWithRoomDetails(List<com.travelhub.connectors.nuitee.dto.response.RoomType> roomTypes, List<Room> hotelRooms) {
+    private List<RateDto> enrichRatesWithRoomDetails(
+            List<com.travelhub.connectors.nuitee.dto.response.RoomType> roomTypes, List<Room> hotelRooms) {
         if (roomTypes == null) {
             return null;
         }
-        
+
         // For each RoomType, we need to map its rates and enrich with room details
         return roomTypes.stream()
                 .flatMap(roomType -> {
@@ -125,7 +127,7 @@ public class BookingMapper {
                         if (rateDto != null) {
                             // Set offerId from the parent RoomType
                             rateDto.setOfferId(roomType.getOfferId());
-                            
+
                             // Enrich with room details from hotel data
                             if (hotelRooms != null && rate.getMappedRoomId() != null) {
                                 Long mappedRoomId = rate.getMappedRoomId();
@@ -157,7 +159,7 @@ public class BookingMapper {
         rateDto.setMaxOccupancy(room.getMaxOccupancy());
         rateDto.setRoomPhotos(mapRoomPhotos(room.getPhotos()));
     }
-    
+
     private List<RoomPhotoDto> mapRoomPhotos(List<com.travelhub.connectors.nuitee.dto.response.RoomPhoto> photos) {
         if (photos == null) {
             return null;
@@ -166,7 +168,7 @@ public class BookingMapper {
                 .map(this::mapRoomPhoto)
                 .collect(Collectors.toList());
     }
-    
+
     private RoomPhotoDto mapRoomPhoto(com.travelhub.connectors.nuitee.dto.response.RoomPhoto photo) {
         if (photo == null) {
             return null;
@@ -211,7 +213,19 @@ public class BookingMapper {
         hotelRatesRequest.setStarRating(request.getStarRating());
         hotelRatesRequest.setFacilities(request.getFacilities());
         hotelRatesRequest.setStrictFacilityFiltering(request.getStrictFacilityFiltering());
+        hotelRatesRequest.setSort(mapSortCriteria(request.getSort()));
         return hotelRatesRequest;
+    }
+
+    private List<com.travelhub.connectors.nuitee.dto.common.SortCriteria> mapSortCriteria(
+            List<com.travelhub.booking.dto.common.SortCriteriaDto> sortDtos) {
+        if (sortDtos == null) {
+            return null;
+        }
+        return sortDtos.stream()
+                .map(dto -> new com.travelhub.connectors.nuitee.dto.common.SortCriteria(dto.getField(),
+                        dto.getDirection()))
+                .collect(Collectors.toList());
     }
 
     public RateSearchResponseDto toRateSearchResponseDto(HotelRatesResponse response) {
@@ -250,12 +264,12 @@ public class BookingMapper {
         }
 
         HotelAvailabilityDto dto = new HotelAvailabilityDto();
-        
+
         // Set data from HotelRate
         dto.setHotelId(hotelRate.getHotelId());
         dto.setRoomTypes(mapRoomTypes(hotelRate.getRoomTypes()));
         dto.setEt(hotelRate.getEt());
-        
+
         // Set data from HotelInfo if available
         if (hotelInfo != null) {
             dto.setName(hotelInfo.getName());
@@ -263,7 +277,7 @@ public class BookingMapper {
             dto.setAddress(hotelInfo.getAddress());
             dto.setRating(hotelInfo.getRating());
         }
-        
+
         return dto;
     }
 
@@ -423,7 +437,8 @@ public class BookingMapper {
     }
 
     // Review mapping methods
-    public com.travelhub.booking.dto.response.HotelReviewsResponseDto toHotelReviewsResponseDto(com.travelhub.connectors.nuitee.dto.response.HotelReviewsResponse response) {
+    public com.travelhub.booking.dto.response.HotelReviewsResponseDto toHotelReviewsResponseDto(
+            com.travelhub.connectors.nuitee.dto.response.HotelReviewsResponse response) {
         if (response == null) {
             return null;
         }
@@ -498,8 +513,7 @@ public class BookingMapper {
         if (requestDto == null) {
             return null;
         }
-        com.travelhub.connectors.nuitee.dto.request.PrebookRequest request = 
-                new com.travelhub.connectors.nuitee.dto.request.PrebookRequest();
+        com.travelhub.connectors.nuitee.dto.request.PrebookRequest request = new com.travelhub.connectors.nuitee.dto.request.PrebookRequest();
         request.setOfferId(requestDto.getOfferId());
         request.setUsePaymentSdk(requestDto.getUsePaymentSdk());
         return request;
@@ -510,8 +524,7 @@ public class BookingMapper {
         if (response == null) {
             return null;
         }
-        com.travelhub.booking.dto.response.PrebookResponseDto dto = 
-                new com.travelhub.booking.dto.response.PrebookResponseDto();
+        com.travelhub.booking.dto.response.PrebookResponseDto dto = new com.travelhub.booking.dto.response.PrebookResponseDto();
         dto.setData(toPrebookDataDto(response.getData()));
         dto.setGuestLevel(response.getGuestLevel());
         dto.setSandbox(response.getSandbox());
@@ -523,14 +536,13 @@ public class BookingMapper {
         if (data == null) {
             return null;
         }
-        com.travelhub.booking.dto.response.PrebookResponseDto.PrebookDataDto dto = 
-                new com.travelhub.booking.dto.response.PrebookResponseDto.PrebookDataDto();
+        com.travelhub.booking.dto.response.PrebookResponseDto.PrebookDataDto dto = new com.travelhub.booking.dto.response.PrebookResponseDto.PrebookDataDto();
         dto.setPrebookId(data.getPrebookId());
         dto.setOfferId(data.getOfferId());
         dto.setHotelId(data.getHotelId());
         dto.setCurrency(data.getCurrency());
         dto.setTermsAndConditions(data.getTermsAndConditions());
-        
+
         // Map roomTypes if present
         if (data.getRoomTypes() != null) {
             List<RoomTypeDto> roomTypeDtos = data.getRoomTypes().stream()
@@ -538,7 +550,7 @@ public class BookingMapper {
                     .collect(Collectors.toList());
             dto.setRoomTypes(roomTypeDtos);
         }
-        
+
         dto.setSuggestedSellingPrice(data.getSuggestedSellingPrice());
         dto.setIsPackageRate(data.getIsPackageRate());
         dto.setCommission(data.getCommission());

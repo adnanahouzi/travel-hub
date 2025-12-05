@@ -53,9 +53,9 @@ public class RateController {
     public ResponseEntity<RateSearchResponseDto> searchRates(
             @Parameter(description = "Hotel search criteria including dates, location, and guest information")
             @RequestBody RateSearchRequestDto request) {
-        logger.info("Received rate search request - placeId: {}, checkin: {}, checkout: {}, occupancies: {}", 
+        logger.info("Received rate search request - placeId: {}, checkin: {}, checkout: {}, occupancies: {}, offset {}, limit {}",
                 request.getPlaceId(), request.getCheckin(), request.getCheckout(), 
-                request.getOccupancies() != null ? request.getOccupancies().size() : 0);
+                request.getOccupancies() != null ? request.getOccupancies().size() : 0, request.getOffset(), request.getLimit());
         
         RateSearchResponseDto response = rateService.searchRates(request);
         

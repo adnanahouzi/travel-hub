@@ -38,18 +38,18 @@ export const RoomListScreen = ({ navigation, route }) => {
 
       // Call prebook API
       const prebookResponse = await ApiService.prebook(rate.offerId, false);
-      
+
       console.log('Prebook successful:', prebookResponse);
 
       // Navigate to summary with prebook data
-      navigation.navigate('BookingSummary', { 
+      navigation.navigate('BookingSummary', {
         rate,
-        prebookData: prebookResponse.data 
+        prebookData: prebookResponse.data
       });
     } catch (error) {
       console.error('Prebook error:', error);
       Alert.alert(
-        'Erreur de réservation', 
+        'Erreur de réservation',
         'Impossible de créer la session de pré-réservation. Veuillez réessayer.'
       );
     } finally {
@@ -61,15 +61,16 @@ export const RoomListScreen = ({ navigation, route }) => {
   const renderRoomCard = ({ item, index }) => {
     // Mock calculations for visual match
     const totalPrice = item.retailRate.total[0].amount;
+    const currency = item.retailRate.total[0].currency || 'MAD';
     const nightlyPrice = Math.round(totalPrice / 2); // Assuming 2 nights for demo
     const points = Math.round(totalPrice * 10);
-    
+
     // Get room images from roomPhotos if available
     let roomImages = [];
     if (item.roomPhotos && item.roomPhotos.length > 0) {
       roomImages = item.roomPhotos.map(photo => photo.url).filter(url => url);
     }
-    
+
     // Fallback to placeholder if no images
     if (roomImages.length === 0) {
       roomImages = ['https://images.unsplash.com/photo-1611892440504-42a792e24d32?w=500&q=80'];
@@ -110,7 +111,7 @@ export const RoomListScreen = ({ navigation, route }) => {
               />
             ))}
           </ScrollView>
-          
+
           {/* Image Counter & Pagination */}
           {roomImages.length > 1 && (
             <>
@@ -133,15 +134,15 @@ export const RoomListScreen = ({ navigation, route }) => {
             </>
           )}
         </View>
-        
+
         <View style={styles.cardContent}>
           <Text style={styles.roomDetails}>22m2 • 2 lits jumeaux ou 1 lit Queen</Text>
           <Text style={styles.roomTitle}>{item.name}</Text>
-          
+
           <View style={styles.iconRow}>
             <Ionicons name="person-outline" size={14} color="#6B7280" />
             <Text style={styles.iconText}>3 personnes</Text>
-            <Ionicons name="wifi-outline" size={14} color="#6B7280" style={{marginLeft: 12}} />
+            <Ionicons name="wifi-outline" size={14} color="#6B7280" style={{ marginLeft: 12 }} />
             <Text style={styles.iconText}>Wi-Fi gratuit</Text>
           </View>
 
@@ -155,10 +156,10 @@ export const RoomListScreen = ({ navigation, route }) => {
               <Text style={styles.priceLabel}>Prix</Text>
               <Text style={styles.pointsLabel}>Points gagnés</Text>
             </View>
-            <View style={{alignItems: 'flex-end'}}>
+            <View style={{ alignItems: 'flex-end' }}>
               <View style={styles.priceRow}>
-                <Text style={styles.nightlyPrice}>{nightlyPrice} $</Text>
-                <Text style={styles.totalPrice}>{Math.round(totalPrice)} $</Text>
+                <Text style={styles.nightlyPrice}>{nightlyPrice} {currency}</Text>
+                <Text style={styles.totalPrice}>{Math.round(totalPrice)} {currency}</Text>
               </View>
               <View style={styles.pointsPill}>
                 <Ionicons name="diamond-outline" size={12} color="#D97706" />
@@ -167,7 +168,7 @@ export const RoomListScreen = ({ navigation, route }) => {
             </View>
           </View>
 
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.selectButton, loading && selectedRateId === item.rateId && styles.selectButtonDisabled]}
             onPress={() => handleSelectRoom(item)}
             disabled={loading}
@@ -191,7 +192,7 @@ export const RoomListScreen = ({ navigation, route }) => {
           <Ionicons name="close" size={24} color="#1F2937" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Choisir les chambres</Text>
-        <View style={{width: 24}} />
+        <View style={{ width: 24 }} />
       </View>
 
       {/* Filters */}
@@ -206,7 +207,7 @@ export const RoomListScreen = ({ navigation, route }) => {
               <Text style={styles.filterText}>{item}</Text>
             </View>
           )}
-          contentContainerStyle={{paddingHorizontal: 20}}
+          contentContainerStyle={{ paddingHorizontal: 20 }}
         />
       </View>
 

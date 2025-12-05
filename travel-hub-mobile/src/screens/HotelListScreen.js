@@ -19,16 +19,16 @@ import { ApiService } from '../services/api.service';
 const { width } = Dimensions.get('window');
 
 export const HotelListScreen = ({ navigation }) => {
-  const { 
-    searchResults, 
-    searchParams, 
+  const {
+    searchResults,
+    searchParams,
     totalResults,
     setTotalResults,
     appendSearchResults,
-    loading, 
+    loading,
     loadingMore,
     setLoadingMore,
-    setSelectedHotel 
+    setSelectedHotel
   } = useBooking();
 
   const handleHotelPress = (hotel) => {
@@ -37,12 +37,12 @@ export const HotelListScreen = ({ navigation }) => {
   };
 
   const loadMoreHotels = async () => {
-    if (loadingMore || searchResults.length >= totalResults) return;
+    if (loadingMore) return;
 
     try {
       setLoadingMore(true);
       const currentOffset = searchResults.length;
-      const limit = 5;
+      const limit = 50;
 
       const searchRequest = {
         placeId: searchParams.placeId,
@@ -54,17 +54,21 @@ export const HotelListScreen = ({ navigation }) => {
         limit: limit,
         offset: currentOffset,
         roomMapping: false,
+        sort: [
+          {
+            field: 'top_picks',
+            direction: 'ascending'
+          }
+        ]
       };
 
       const results = await ApiService.searchRates(searchRequest);
       const newHotels = results.hotels || [];
-      
+
       appendSearchResults(newHotels);
-      
+
       // If we received fewer items than the limit, we've reached the end
       if (newHotels.length < limit) {
-        // Update total results to match current count to hide the Load More button
-        // We need to expose setTotalResults in HotelListScreen for this
         setTotalResults(currentOffset + newHotels.length);
       }
     } catch (error) {
@@ -84,7 +88,7 @@ export const HotelListScreen = ({ navigation }) => {
         <Ionicons name="bed-outline" size={64} color="#d1d5db" />
         <Text style={styles.emptyText}>Aucun hôtel trouvé</Text>
         <Text style={styles.emptySubtext}>Essayez de modifier vos critères de recherche</Text>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
@@ -98,7 +102,7 @@ export const HotelListScreen = ({ navigation }) => {
   const formatSearchCriteria = () => {
     const { checkin, checkout, occupancies } = searchParams;
     let criteriaText = '';
-    
+
     if (checkin && checkout) {
       try {
         const checkinDate = new Date(checkin);
@@ -108,7 +112,7 @@ export const HotelListScreen = ({ navigation }) => {
         criteriaText = 'Dates non spécifiées';
       }
     }
-    
+
     if (occupancies && occupancies.length > 0) {
       const adults = occupancies.reduce((sum, occ) => sum + (occ.adults || 0), 0);
       const children = occupancies.reduce((sum, occ) => sum + (occ.children?.length || 0), 0);
@@ -117,7 +121,7 @@ export const HotelListScreen = ({ navigation }) => {
         criteriaText += `, ${children} Enfant${children > 1 ? 's' : ''}`;
       }
     }
-    
+
     return criteriaText;
   };
 
@@ -126,13 +130,13 @@ export const HotelListScreen = ({ navigation }) => {
     const firstRate = item.roomTypes?.[0]?.rates?.[0];
     const totalPrice = firstRate?.retailRate?.total?.[0]?.amount || 0;
     const currency = firstRate?.retailRate?.total?.[0]?.currency || 'DH';
-    
+
     const reviewScore = item.rating || 0;
     const reviewCount = item.reviewCount ?? 0;
     const reviewText = reviewScore >= 8 ? 'Very good' : reviewScore >= 7 ? 'Good' : 'Pleasant';
 
     return (
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.hotelCard}
         onPress={() => handleHotelPress(item)}
         activeOpacity={0.95}
@@ -144,18 +148,18 @@ export const HotelListScreen = ({ navigation }) => {
             style={styles.hotelImage}
             resizeMode="cover"
           />
-          
+
           {/* Rating Badge */}
           <View style={styles.ratingBadge}>
             <Text style={styles.ratingScore}>{reviewScore.toFixed(1).replace('.', ',')}</Text>
           </View>
-          
+
           {/* Review Text */}
           <View style={styles.reviewTextContainer}>
             <Text style={styles.reviewText}>{reviewText}</Text>
             <Text style={styles.reviewCount}>{reviewCount.toLocaleString()} Avis</Text>
           </View>
-          
+
           {/* Favorite Button */}
           <TouchableOpacity style={styles.favoriteButton}>
             <Ionicons name="heart-outline" size={22} color="#E85D40" />
@@ -219,7 +223,7 @@ export const HotelListScreen = ({ navigation }) => {
         >
           <Ionicons name="arrow-back" size={24} color="#E85D40" />
         </TouchableOpacity>
-        
+
         <View style={styles.headerInfo}>
           <Text style={styles.headerTitle}>{searchParams.placeName || 'Résultats'}</Text>
           <Text style={styles.headerSubtitle}>{formatSearchCriteria()}</Text>
@@ -240,7 +244,7 @@ export const HotelListScreen = ({ navigation }) => {
         ListFooterComponent={
           searchResults.length > 0 && searchResults.length < totalResults ? (
             <View style={styles.loadMoreContainer}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.loadMoreButton}
                 onPress={loadMoreHotels}
                 disabled={loadingMore}
@@ -250,7 +254,7 @@ export const HotelListScreen = ({ navigation }) => {
                 ) : (
                   <>
                     <Text style={styles.loadMoreText}>
-                      Afficher plus d'hôtels ({searchResults.length} / {totalResults})
+                      Afficher plus d'hôtels
                     </Text>
                     <Ionicons name="chevron-down" size={20} color="#0066CC" />
                   </>
