@@ -1,0 +1,35 @@
+# Maven
+target/
+!.mvn/wrapper/maven-wrapper.jar
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.DS_Store
+
+# Node (mobile app)
+travel-hub-mobile/node_modules/
+travel-hub-mobile/.expo/
+travel-hub-mobile/dist/
+
+# Logs
+*.log
+
+# Git
+.git/
+.gitignore
+
+# Docker
+.dockerignore
+
+# Build cache
+build/
