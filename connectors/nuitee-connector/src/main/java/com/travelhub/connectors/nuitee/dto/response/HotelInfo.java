@@ -6,12 +6,13 @@ import java.math.BigDecimal;
 public class HotelInfo {
     private String id;
     private String name;
-    
+
     @JsonProperty("main_photo")
     private String mainPhoto;
-    
+
     private String address;
     private BigDecimal rating;
+    private Location location;
 
     public String getId() {
         return id;
@@ -52,5 +53,12 @@ public class HotelInfo {
     public void setRating(BigDecimal rating) {
         this.rating = rating;
     }
-}
 
+    public Location getLocation() {
+        return location;
+    }
+
+    public void setLocation(Location location) {
+        this.location = location;
+    }
+}

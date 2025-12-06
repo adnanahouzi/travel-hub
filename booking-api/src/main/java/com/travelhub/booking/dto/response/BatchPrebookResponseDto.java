@@ -2,13 +2,31 @@ package com.travelhub.booking.dto.response;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.UUID;
 
 public class BatchPrebookResponseDto {
+    private UUID simulationId;
+    private List<PrebookResponseDto> responses;
     private BigDecimal totalAmount;
-    private String currency;
     private BigDecimal totalIncludedTaxes;
     private BigDecimal totalExcludedTaxes;
-    private List<PrebookResponseDto> responses;
+    private String currency;
+
+    public UUID getSimulationId() {
+        return simulationId;
+    }
+
+    public void setSimulationId(UUID simulationId) {
+        this.simulationId = simulationId;
+    }
+
+    public List<PrebookResponseDto> getResponses() {
+        return responses;
+    }
+
+    public void setResponses(List<PrebookResponseDto> responses) {
+        this.responses = responses;
+    }
 
     public BigDecimal getTotalAmount() {
         return totalAmount;
@@ -16,14 +34,6 @@ public class BatchPrebookResponseDto {
 
     public void setTotalAmount(BigDecimal totalAmount) {
         this.totalAmount = totalAmount;
-    }
-
-    public String getCurrency() {
-        return currency;
-    }
-
-    public void setCurrency(String currency) {
-        this.currency = currency;
     }
 
     public BigDecimal getTotalIncludedTaxes() {
@@ -42,11 +52,11 @@ public class BatchPrebookResponseDto {
         this.totalExcludedTaxes = totalExcludedTaxes;
     }
 
-    public List<PrebookResponseDto> getResponses() {
-        return responses;
+    public String getCurrency() {
+        return currency;
     }
 
-    public void setResponses(List<PrebookResponseDto> responses) {
-        this.responses = responses;
+    public void setCurrency(String currency) {
+        this.currency = currency;
     }
 }

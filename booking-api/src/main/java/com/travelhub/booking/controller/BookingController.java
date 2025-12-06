@@ -10,6 +10,9 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.travelhub.booking.dto.request.BookingInitiationRequestDto;
+import com.travelhub.booking.model.Booking;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -47,5 +50,33 @@ public class BookingController {
                                 response.getResponses().size(), response.getTotalAmount(), response.getCurrency());
 
                 return ResponseEntity.ok(response);
+        }
+
+        @PostMapping("/initiate")
+        @Operation(summary = "Initiate a booking", description = "Initiates a booking process with the provided holder information and prebook IDs.")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "Booking initiated successfully"),
+                        @ApiResponse(responseCode = "400", description = "Invalid request parameters"),
+                        @ApiResponse(responseCode = "500", description = "Internal server error")
+        })
+        public ResponseEntity<Booking> initiateBooking(
+                        @Parameter(description = "Booking initiation request", required = true) @Valid @RequestBody BookingInitiationRequestDto request) {
+                logger.info("Received booking initiation request");
+                Booking booking = bookingService.initiateBooking(request);
+                return ResponseEntity.ok(booking);
+        }
+
+        @PostMapping("/submit")
+        @Operation(summary = "Submit a booking", description = "Validates and saves a booking with the provided holder information and simulation ID.")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "Booking submitted successfully"),
+                        @ApiResponse(responseCode = "400", description = "Invalid request parameters"),
+                        @ApiResponse(responseCode = "500", description = "Internal server error")
+        })
+        public ResponseEntity<Booking> submitBooking(
+                        @Parameter(description = "Booking submission request", required = true) @Valid @RequestBody BookingInitiationRequestDto request) {
+                logger.info("Received booking submission request");
+                Booking booking = bookingService.submitBooking(request);
+                return ResponseEntity.ok(booking);
         }
 }

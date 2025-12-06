@@ -7,7 +7,8 @@ import {
   HotelDetailsScreen,
   BookingScreen,
   RoomListScreen,
-  BookingSummaryScreen
+  BookingSummaryScreen,
+  PaymentCheckoutScreen
 } from '../screens';
 
 const Stack = createStackNavigator();
@@ -28,6 +29,7 @@ export const AppNavigator = () => {
         <Stack.Screen name="RoomList" component={RoomListScreen} />
         <Stack.Screen name="BookingSummary" component={BookingSummaryScreen} />
         <Stack.Screen name="Booking" component={BookingScreen} />
+        <Stack.Screen name="PaymentCheckout" component={PaymentCheckoutScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

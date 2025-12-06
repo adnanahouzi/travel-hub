@@ -13,54 +13,71 @@ import org.springframework.stereotype.Service;
 @Service
 public class HotelDataServiceImpl implements HotelDataService {
 
-    private static final Logger logger = LoggerFactory.getLogger(HotelDataServiceImpl.class);
-    private final NuiteeApiClient nuiteeApiClient;
-    private final BookingMapper bookingMapper;
+        private static final Logger logger = LoggerFactory.getLogger(HotelDataServiceImpl.class);
+        private final NuiteeApiClient nuiteeApiClient;
+        private final BookingMapper bookingMapper;
 
-    public HotelDataServiceImpl(NuiteeApiClient nuiteeApiClient, BookingMapper bookingMapper) {
-        this.nuiteeApiClient = nuiteeApiClient;
-        this.bookingMapper = bookingMapper;
-    }
+        public HotelDataServiceImpl(NuiteeApiClient nuiteeApiClient, BookingMapper bookingMapper) {
+                this.nuiteeApiClient = nuiteeApiClient;
+                this.bookingMapper = bookingMapper;
+        }
 
-    @Override
-    public PlaceSearchResponseDto searchPlaces(PlaceSearchRequestDto request) {
-        logger.info("Searching places - textQuery: {}", request.getTextQuery());
-        
-        // Call the connector
-        PlaceResponse connectorResponse = nuiteeApiClient.searchPlaces(
-                request.getTextQuery(),
-                request.getLanguage(),
-                request.getClientIP()
-        );
-        logger.info("Place search completed - found {} places", 
-                connectorResponse.getData() != null ? connectorResponse.getData().size() : 0);
+        @Override
+        public PlaceSearchResponseDto searchPlaces(PlaceSearchRequestDto request) {
+                logger.info("Searching places - textQuery: {}", request.getTextQuery());
 
-        // Map the connector response to booking API response
-        PlaceSearchResponseDto response = bookingMapper.toPlaceSearchResponseDto(connectorResponse);
-        logger.debug("Mapped connector response to DTO");
-        
-        return response;
-    }
+                // Call the connector
+                PlaceResponse connectorResponse = nuiteeApiClient.searchPlaces(
+                                request.getTextQuery(),
+                                request.getLanguage(),
+                                request.getClientIP());
+                logger.info("Place search completed - found {} places",
+                                connectorResponse.getData() != null ? connectorResponse.getData().size() : 0);
 
-    @Override
-    public com.travelhub.booking.dto.response.HotelReviewsResponseDto getHotelReviews(String hotelId, Integer limit, Integer offset, Integer timeout, Boolean getSentiment) {
-        logger.info("Fetching hotel reviews - hotelId: {}, limit: {}, getSentiment: {}", 
-                hotelId, limit, getSentiment);
-        
-        com.travelhub.connectors.nuitee.dto.response.HotelReviewsResponse connectorResponse = nuiteeApiClient.getHotelReviews(
-                hotelId,
-                limit,
-                offset,
-                timeout,
-                getSentiment
-        );
-        logger.info("Hotel reviews fetched - hotelId: {}, reviews count: {}", 
-                hotelId, connectorResponse.getData() != null ? connectorResponse.getData().size() : 0);
-        
-        com.travelhub.booking.dto.response.HotelReviewsResponseDto response = bookingMapper.toHotelReviewsResponseDto(connectorResponse);
-        logger.debug("Mapped connector response to DTO");
-        
-        return response;
-    }
+                // Map the connector response to booking API response
+                PlaceSearchResponseDto response = bookingMapper.toPlaceSearchResponseDto(connectorResponse);
+                logger.debug("Mapped connector response to DTO");
+
+                return response;
+        }
+
+        @Override
+        public com.travelhub.booking.dto.response.PlaceDetailsDto getPlaceDetails(String placeId, String language) {
+                logger.info("Fetching place details - placeId: {}", placeId);
+
+                com.travelhub.connectors.nuitee.dto.response.PlaceDetailsResponse connectorResponse = nuiteeApiClient
+                                .getPlaceDetails(
+                                                placeId,
+                                                language);
+                logger.info("Place details fetched - placeId: {}", placeId);
+
+                com.travelhub.booking.dto.response.PlaceDetailsDto response = bookingMapper
+                                .toPlaceDetailsDto(connectorResponse);
+                logger.debug("Mapped connector response to DTO");
+
+                return response;
+        }
+
+        @Override
+        public com.travelhub.booking.dto.response.HotelReviewsResponseDto getHotelReviews(String hotelId, Integer limit,
+                        Integer offset, Integer timeout, Boolean getSentiment) {
+                logger.info("Fetching hotel reviews - hotelId: {}, limit: {}, getSentiment: {}",
+                                hotelId, limit, getSentiment);
+
+                com.travelhub.connectors.nuitee.dto.response.HotelReviewsResponse connectorResponse = nuiteeApiClient
+                                .getHotelReviews(
+                                                hotelId,
+                                                limit,
+                                                offset,
+                                                timeout,
+                                                getSentiment);
+                logger.info("Hotel reviews fetched - hotelId: {}, reviews count: {}",
+                                hotelId, connectorResponse.getData() != null ? connectorResponse.getData().size() : 0);
+
+                com.travelhub.booking.dto.response.HotelReviewsResponseDto response = bookingMapper
+                                .toHotelReviewsResponseDto(connectorResponse);
+                logger.debug("Mapped connector response to DTO");
+
+                return response;
+        }
 }
-

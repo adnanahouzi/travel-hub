@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useBooking } from '../context/BookingContext';
+import { TravelerInfoModal } from '../components';
 
 const { width } = Dimensions.get('window');
 
@@ -28,6 +29,7 @@ export const BookingSummaryScreen = ({ navigation, route }) => {
   const totalPrice = batchResponse.totalAmount || 0;
   const currency = batchResponse.currency || 'MAD';
   const prebookResponses = batchResponse.responses || [];
+  const prebookIds = prebookResponses.map(r => r.data?.prebookId).join(', ');
 
   // Get T&Cs from the first response
   const termsAndConditions = prebookResponses[0]?.data?.termsAndConditions;
@@ -43,21 +45,7 @@ export const BookingSummaryScreen = ({ navigation, route }) => {
     maximumFractionDigits: 2
   }).format(totalPrice);
 
-  const handleConfirm = () => {
-    // In a real app, this would call the booking API with all prebookIds
-    const prebookIds = prebookResponses.map(r => r.data?.prebookId).join(', ');
 
-    Alert.alert(
-      'Réservation confirmée',
-      `Votre réservation a été confirmée avec succès.\nRéférences: ${prebookIds}`,
-      [
-        {
-          text: 'OK',
-          onPress: () => navigation.navigate('Search')
-        }
-      ]
-    );
-  };
 
   const handleCancel = () => {
     navigation.goBack();
@@ -71,6 +59,20 @@ export const BookingSummaryScreen = ({ navigation, route }) => {
   const openConditionsModal = (content) => {
     setModalContent(content);
     setModalVisible(true);
+  };
+
+  // Traveler Info State
+  const [travelerInfo, setTravelerInfo] = useState({
+    firstName: 'John',
+    lastName: 'Doe',
+    phone: '+212 60000000',
+    email: 'john.doe@email.com',
+    specialRequests: ''
+  });
+  const [isTravelerModalVisible, setIsTravelerModalVisible] = useState(false);
+
+  const handleSaveTravelerInfo = (newInfo) => {
+    setTravelerInfo(newInfo);
   };
 
   return (
@@ -182,7 +184,7 @@ export const BookingSummaryScreen = ({ navigation, route }) => {
         {/* Traveler Info */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Informations de voyage</Text>
-          <TouchableOpacity>
+          <TouchableOpacity onPress={() => setIsTravelerModalVisible(true)}>
             <Text style={styles.editLink}>Modifier</Text>
           </TouchableOpacity>
         </View>
@@ -190,21 +192,28 @@ export const BookingSummaryScreen = ({ navigation, route }) => {
         <View style={styles.infoCard}>
           <View style={styles.infoRow}>
             <Ionicons name="person-outline" size={20} color="#6B7280" />
-            <Text style={styles.infoText}>John Doe</Text>
+            <Text style={styles.infoText}>{`${travelerInfo.firstName} ${travelerInfo.lastName}`}</Text>
           </View>
           <View style={styles.infoRow}>
             <Ionicons name="phone-portrait-outline" size={20} color="#6B7280" />
-            <Text style={styles.infoText}>+212 60000000</Text>
+            <Text style={styles.infoText}>{travelerInfo.phone}</Text>
           </View>
           <View style={styles.infoRow}>
             <Ionicons name="mail-outline" size={20} color="#6B7280" />
-            <Text style={styles.infoText}>john.doe@email.com</Text>
+            <Text style={styles.infoText}>{travelerInfo.email}</Text>
           </View>
           <View style={styles.infoRow}>
             <Ionicons name="document-text-outline" size={20} color="#6B7280" />
-            <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'space-between' }}>
-              <Text style={styles.infoLabel}>Demandes spéciales</Text>
-              <Text style={styles.infoValue}>Aucun</Text>
+            <View style={{ flex: 1 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Text style={styles.infoLabel}>Demandes spéciales</Text>
+                <Text style={styles.infoValue}>{travelerInfo.specialRequests ? 'Oui' : 'Aucun'}</Text>
+              </View>
+              {travelerInfo.specialRequests ? (
+                <Text style={[styles.infoText, { marginTop: 4, fontSize: 13, color: '#4B5563' }]}>
+                  {travelerInfo.specialRequests}
+                </Text>
+              ) : null}
             </View>
           </View>
         </View>
@@ -321,7 +330,22 @@ export const BookingSummaryScreen = ({ navigation, route }) => {
           <Text style={styles.cancelButtonText}>Annuler</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={handleConfirm} style={styles.confirmButton}>
+        {/* Confirm Button */}
+        <TouchableOpacity
+          style={styles.confirmButton}
+          onPress={() => {
+            // Navigate to payment checkout screen
+            navigation.navigate('PaymentCheckout', {
+              prebookData: {
+                simulationId: prebookIds,
+                totalAmount: batchResponse.totalAmount, // Use batchResponse for total amount
+                totalIncludedTaxes: batchResponse.totalIncludedTaxes,
+                totalExcludedTaxes: batchResponse.totalExcludedTaxes,
+              },
+              travelerInfo: travelerInfo,
+            });
+          }}
+        >
           <Text style={styles.confirmButtonText}>Confirmer</Text>
         </TouchableOpacity>
       </View>
@@ -356,6 +380,14 @@ export const BookingSummaryScreen = ({ navigation, route }) => {
           </View>
         </View>
       </Modal>
+
+      {/* Traveler Info Edit Modal */}
+      <TravelerInfoModal
+        visible={isTravelerModalVisible}
+        onClose={() => setIsTravelerModalVisible(false)}
+        initialData={travelerInfo}
+        onSave={handleSaveTravelerInfo}
+      />
     </View>
   );
 };

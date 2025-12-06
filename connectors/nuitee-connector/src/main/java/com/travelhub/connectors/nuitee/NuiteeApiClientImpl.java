@@ -32,8 +32,8 @@ public class NuiteeApiClientImpl implements NuiteeApiClient {
 
     @Override
     public HotelListResponse getHotels(String countryCode, String city,
-                                       Integer limit, Integer offset, Double latitude, Double longitude, Integer distance,
-                                       java.util.List<String> hotelIds, Integer minStars, Integer maxStars, String placeId) {
+            Integer limit, Integer offset, Double latitude, Double longitude, Integer distance,
+            java.util.List<String> hotelIds, Integer minStars, Integer maxStars, String placeId) {
         logger.info("Calling Nuitee hotels API - city: {}, country: {}, placeId: {}", city, countryCode, placeId);
 
         UriComponentsBuilder builder = UriComponentsBuilder.fromPath(HOTELS_ENDPOINT);
@@ -100,6 +100,24 @@ public class NuiteeApiClientImpl implements NuiteeApiClient {
 
         logger.info("Nuitee places response received - places found: {}",
                 response != null && response.getData() != null ? response.getData().size() : 0);
+
+        return response;
+    }
+
+    @Override
+    public PlaceDetailsResponse getPlaceDetails(String placeId, String language) {
+        logger.info("Calling Nuitee place details API - placeId: {}", placeId);
+
+        UriComponentsBuilder builder = UriComponentsBuilder.fromPath(PLACES_ENDPOINT + "/" + placeId);
+
+        if (language != null) {
+            builder.queryParam("language", language);
+        }
+
+        String url = builder.build().toUriString();
+        PlaceDetailsResponse response = restTemplate.getForObject(url, PlaceDetailsResponse.class);
+
+        logger.info("Nuitee place details response received - placeId: {}", placeId);
 
         return response;
     }

@@ -15,11 +15,12 @@ export const ENDPOINTS = {
   // Rate endpoints
   SEARCH_RATES: '/rates/search',
   GET_HOTEL_RATES: (hotelId) => `/rates/${hotelId}`,
-  
+
   // Hotel data endpoints
   SEARCH_PLACES: '/hotels/places',
+  GET_PLACE_DETAILS: (placeId) => `/hotels/places/${placeId}`,
   GET_REVIEWS: '/hotels/reviews',
-  
+
   // Booking endpoints
   PREBOOK: '/booking/prebook',
   BOOK: '/booking/book',

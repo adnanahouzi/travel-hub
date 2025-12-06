@@ -19,6 +19,7 @@ export const BookingProvider = ({ children }) => {
     checkout: null,
     placeId: null,
     placeName: null,
+    searchLocation: null, // { latitude, longitude, description }
   });
 
   const [searchResults, setSearchResults] = useState([]);
@@ -42,18 +43,18 @@ export const BookingProvider = ({ children }) => {
     setSearchResults((prev) => {
       // Create a Set of existing hotel IDs for efficient lookup
       const existingIds = new Set(prev.map(h => h.hotelId));
-      
+
       // Filter out duplicates within newResults itself and against existingIds
       const uniqueNewResults = [];
       const newIds = new Set();
-      
+
       for (const hotel of newResults) {
         if (!existingIds.has(hotel.hotelId) && !newIds.has(hotel.hotelId)) {
           uniqueNewResults.push(hotel);
           newIds.add(hotel.hotelId);
         }
       }
-      
+
       return [...prev, ...uniqueNewResults];
     });
   };

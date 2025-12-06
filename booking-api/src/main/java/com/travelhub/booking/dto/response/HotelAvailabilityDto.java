@@ -10,7 +10,8 @@ public class HotelAvailabilityDto {
     private String mainPhoto;
     private String address;
     private BigDecimal rating;
-    
+    private LocationDto location;
+
     // From HotelRate
     private List<RoomTypeDto> roomTypes;
     private Integer et;
@@ -55,6 +56,14 @@ public class HotelAvailabilityDto {
         this.rating = rating;
     }
 
+    public LocationDto getLocation() {
+        return location;
+    }
+
+    public void setLocation(LocationDto location) {
+        this.location = location;
+    }
+
     public List<RoomTypeDto> getRoomTypes() {
         return roomTypes;
     }
@@ -71,4 +80,3 @@ public class HotelAvailabilityDto {
         this.et = et;
     }
 }
-

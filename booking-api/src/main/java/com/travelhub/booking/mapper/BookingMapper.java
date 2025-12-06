@@ -37,6 +37,20 @@ public class BookingMapper {
         return placeDto;
     }
 
+    public PlaceDetailsDto toPlaceDetailsDto(
+            com.travelhub.connectors.nuitee.dto.response.PlaceDetailsResponse response) {
+        if (response == null || response.getData() == null) {
+            return null;
+        }
+        com.travelhub.connectors.nuitee.dto.response.PlaceDetails data = response.getData();
+        PlaceDetailsDto dto = new PlaceDetailsDto();
+        dto.setPlaceId(data.getPlaceId());
+        dto.setDescription(data.getDescription());
+        dto.setCity(data.getCity());
+        dto.setLocation(toLocationDto(data.getLocation()));
+        return dto;
+    }
+
     // Hotel rate mapping methods
     public HotelRateResponseDto toHotelRateResponseDto(HotelData hotelData,
             List<com.travelhub.connectors.nuitee.dto.response.RoomType> roomTypes) {
@@ -277,6 +291,7 @@ public class BookingMapper {
             dto.setMainPhoto(hotelInfo.getMainPhoto());
             dto.setAddress(hotelInfo.getAddress());
             dto.setRating(hotelInfo.getRating());
+            dto.setLocation(toLocationDto(hotelInfo.getLocation()));
         }
 
         return dto;

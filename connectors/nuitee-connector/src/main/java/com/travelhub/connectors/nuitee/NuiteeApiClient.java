@@ -12,23 +12,26 @@ import com.travelhub.connectors.nuitee.dto.response.PlaceResponse;
 import com.travelhub.connectors.nuitee.dto.response.PrebookResponse;
 
 import com.travelhub.connectors.nuitee.dto.response.HotelListResponse;
+import com.travelhub.connectors.nuitee.dto.response.PlaceDetailsResponse;
 
 public interface NuiteeApiClient {
-    HotelListResponse getHotels(String countryCode, String city, Integer limit, Integer offset, Double latitude,
-            Double longitude, Integer distance, List<String> hotelIds, Integer minStars, Integer maxStars,
-            String placeId);
+        HotelListResponse getHotels(String countryCode, String city, Integer limit, Integer offset, Double latitude,
+                        Double longitude, Integer distance, List<String> hotelIds, Integer minStars, Integer maxStars,
+                        String placeId);
 
-    HotelRatesResponse retrieveHotelRates(HotelRatesRequest request);
+        HotelRatesResponse retrieveHotelRates(HotelRatesRequest request);
 
-    PlaceResponse searchPlaces(String textQuery, String language, String clientIP);
+        PlaceResponse searchPlaces(String textQuery, String language, String clientIP);
 
-    HotelDetailsResponse getHotelDetails(String hotelId, Integer timeout, String language,
-            Boolean advancedAccessibilityOnly);
+        PlaceDetailsResponse getPlaceDetails(String placeId, String language);
 
-    HotelReviewsResponse getHotelReviews(String hotelId, Integer limit, Integer offset, Integer timeout,
-            Boolean getSentiment);
+        HotelDetailsResponse getHotelDetails(String hotelId, Integer timeout, String language,
+                        Boolean advancedAccessibilityOnly);
 
-    PrebookResponse prebook(PrebookRequest request);
+        HotelReviewsResponse getHotelReviews(String hotelId, Integer limit, Integer offset, Integer timeout,
+                        Boolean getSentiment);
 
-    BookResponse book(BookRequest request);
+        PrebookResponse prebook(PrebookRequest request);
+
+        BookResponse book(BookRequest request);
 }

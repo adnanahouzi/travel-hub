@@ -43,6 +43,13 @@ export const ApiService = {
     return apiClient.post(ENDPOINTS.SEARCH_PLACES, params);
   },
 
+  // Get place details by ID
+  getPlaceDetails: async (placeId, language = 'fr') => {
+    return apiClient.get(ENDPOINTS.GET_PLACE_DETAILS(placeId), {
+      params: { language }
+    });
+  },
+
   // Search for hotel rates
   searchRates: async (searchParams) => {
     return apiClient.post(ENDPOINTS.SEARCH_RATES, searchParams);

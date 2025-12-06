@@ -15,6 +15,13 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
+
+import com.travelhub.booking.dto.request.BookingInitiationRequestDto;
+import com.travelhub.booking.model.Booking;
+import com.travelhub.booking.model.BookingSimulation;
+import com.travelhub.booking.repository.BookingRepository;
+import com.travelhub.booking.repository.BookingSimulationRepository;
 
 @Service
 public class BookingServiceImpl implements BookingService {
@@ -22,10 +29,15 @@ public class BookingServiceImpl implements BookingService {
     private static final Logger logger = LoggerFactory.getLogger(BookingServiceImpl.class);
     private final NuiteeApiClient nuiteeApiClient;
     private final BookingMapper bookingMapper;
+    private final BookingRepository bookingRepository;
+    private final BookingSimulationRepository bookingSimulationRepository;
 
-    public BookingServiceImpl(NuiteeApiClient nuiteeApiClient, BookingMapper bookingMapper) {
+    public BookingServiceImpl(NuiteeApiClient nuiteeApiClient, BookingMapper bookingMapper,
+            BookingRepository bookingRepository, BookingSimulationRepository bookingSimulationRepository) {
         this.nuiteeApiClient = nuiteeApiClient;
         this.bookingMapper = bookingMapper;
+        this.bookingRepository = bookingRepository;
+        this.bookingSimulationRepository = bookingSimulationRepository;
     }
 
     @Override
@@ -76,7 +88,25 @@ public class BookingServiceImpl implements BookingService {
             }
         }
 
+        // Create and save booking simulation
+        BookingSimulation simulation = new BookingSimulation();
+        simulation.setTotalAmount(totalAmount);
+        simulation.setTotalIncludedTaxes(totalIncludedTaxes);
+        simulation.setTotalExcludedTaxes(totalExcludedTaxes);
+        simulation.setCurrency(currency);
+
+        // Extract connector prebook IDs from responses
+        List<String> connectorPrebookIds = responses.stream()
+                .map(r -> r.getData() != null ? r.getData().getPrebookId() : null)
+                .filter(Objects::nonNull)
+                .toList();
+        simulation.setConnectorPrebookIds(connectorPrebookIds);
+
+        simulation = bookingSimulationRepository.save(simulation);
+        logger.info("Created booking simulation with ID: {}", simulation.getId());
+
         BatchPrebookResponseDto batchResponse = new BatchPrebookResponseDto();
+        batchResponse.setSimulationId(simulation.getId());
         batchResponse.setResponses(responses);
         batchResponse.setTotalAmount(totalAmount);
         batchResponse.setTotalIncludedTaxes(totalIncludedTaxes);
@@ -84,5 +114,70 @@ public class BookingServiceImpl implements BookingService {
         batchResponse.setCurrency(currency);
 
         return batchResponse;
+    }
+
+    @Override
+    public Booking initiateBooking(BookingInitiationRequestDto request) {
+        logger.info("Validating booking initiation for holder: {} {}",
+                request.getHolder().getFirstName(), request.getHolder().getLastName());
+
+        // Retrieve and validate simulation
+        BookingSimulation simulation = bookingSimulationRepository.findById(request.getSimulationId())
+                .orElseThrow(() -> new RuntimeException("Simulation not found: " + request.getSimulationId()));
+
+        if (simulation.isExpired()) {
+            throw new RuntimeException("Simulation has expired");
+        }
+
+        if (!"ACTIVE".equals(simulation.getStatus())) {
+            throw new RuntimeException("Simulation is not active");
+        }
+
+        // Create booking entity for validation (NOT saved)
+        Booking booking = new Booking();
+        booking.setHolderFirstName(request.getHolder().getFirstName());
+        booking.setHolderLastName(request.getHolder().getLastName());
+        booking.setHolderEmail(request.getHolder().getEmail());
+        booking.setHolderPhone(request.getHolder().getPhone());
+        booking.setSimulationId(simulation.getId());
+        booking.setBankingAccount(request.getBankingAccount());
+        booking.setStatus("INITIATED");
+
+        logger.info("Booking validation successful - simulation: {}", simulation.getId());
+        return booking;
+    }
+
+    @Override
+    public Booking submitBooking(BookingInitiationRequestDto request) {
+        logger.info("Submitting booking for holder: {} {}",
+                request.getHolder().getFirstName(), request.getHolder().getLastName());
+
+        // Retrieve and validate simulation
+        BookingSimulation simulation = bookingSimulationRepository.findById(request.getSimulationId())
+                .orElseThrow(() -> new RuntimeException("Simulation not found: " + request.getSimulationId()));
+
+        if (simulation.isExpired()) {
+            throw new RuntimeException("Simulation has expired");
+        }
+
+        if (!"ACTIVE".equals(simulation.getStatus())) {
+            throw new RuntimeException("Simulation is not active");
+        }
+
+        // Create and SAVE booking entity
+        Booking booking = new Booking();
+        booking.setHolderFirstName(request.getHolder().getFirstName());
+        booking.setHolderLastName(request.getHolder().getLastName());
+        booking.setHolderEmail(request.getHolder().getEmail());
+        booking.setHolderPhone(request.getHolder().getPhone());
+        booking.setSimulationId(simulation.getId());
+        booking.setBankingAccount(request.getBankingAccount());
+        booking.setStatus("SUBMITTED");
+
+        Booking savedBooking = bookingRepository.save(booking);
+        logger.info("Booking saved successfully - ID: {}, simulation: {}",
+                savedBooking.getId(), simulation.getId());
+
+        return savedBooking;
     }
 }

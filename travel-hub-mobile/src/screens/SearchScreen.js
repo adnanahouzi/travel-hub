@@ -25,7 +25,7 @@ import { HotelCard } from '../components';
 const { width, height } = Dimensions.get('window');
 
 export const SearchScreen = ({ navigation }) => {
-  const { updateSearchParams, setSearchResults, setTotalResults, setLoading, loading, setSelectedHotel } = useBooking();
+  const { searchParams, updateSearchParams, setSearchResults, setTotalResults, setLoading, loading, setSelectedHotel } = useBooking();
 
   // Search State
   const [destination, setDestination] = useState('');
@@ -91,6 +91,24 @@ export const SearchScreen = ({ navigation }) => {
     setPlaceId(place.placeId);
     setPlaces([]);
     setShowPlaces(false);
+
+    // Fetch place coordinates in background (non-blocking)
+    ApiService.getPlaceDetails(place.placeId, 'fr')
+      .then(placeDetails => {
+        if (placeDetails && placeDetails.location) {
+          updateSearchParams({
+            searchLocation: {
+              latitude: placeDetails.location.latitude,
+              longitude: placeDetails.location.longitude,
+              description: placeDetails.description || place.displayName
+            }
+          });
+        }
+      })
+      .catch(error => {
+        console.error('Error fetching place details:', error);
+        // Continue without coordinates - not critical for search
+      });
   };
 
   const searchHotels = async () => {
@@ -102,6 +120,34 @@ export const SearchScreen = ({ navigation }) => {
     try {
       setLoading(true);
 
+      let currentPlaceId = placeId;
+      let currentPlaceName = placeName || destination;
+      let searchLocation = searchParams.searchLocation;
+
+      // If no place selected, try to resolve from text
+      if (!currentPlaceId) {
+        try {
+          const placesResponse = await ApiService.searchPlaces({ textQuery: destination });
+          if (placesResponse.places && placesResponse.places.length > 0) {
+            const bestMatch = placesResponse.places[0];
+            currentPlaceId = bestMatch.placeId;
+            currentPlaceName = bestMatch.displayName;
+
+            // Get coordinates for distance calculation
+            const details = await ApiService.getPlaceDetails(currentPlaceId, 'fr');
+            if (details && details.location) {
+              searchLocation = {
+                latitude: details.location.latitude,
+                longitude: details.location.longitude,
+                description: details.description || bestMatch.displayName
+              };
+            }
+          }
+        } catch (err) {
+          console.error('Error resolving place from text:', err);
+        }
+      }
+
       const occupancies = [
         {
           adults: adults,
@@ -110,8 +156,9 @@ export const SearchScreen = ({ navigation }) => {
       ];
 
       updateSearchParams({
-        placeId: placeId,
-        placeName: placeName,
+        placeId: currentPlaceId,
+        placeName: currentPlaceName,
+        searchLocation: searchLocation,
         checkin: format(checkinDate, 'yyyy-MM-dd'),
         checkout: format(checkoutDate, 'yyyy-MM-dd'),
         occupancies: occupancies,
@@ -120,7 +167,7 @@ export const SearchScreen = ({ navigation }) => {
       });
 
       const searchRequest = {
-        placeId: placeId,
+        placeId: currentPlaceId,
         checkin: format(checkinDate, 'yyyy-MM-dd'),
         checkout: format(checkoutDate, 'yyyy-MM-dd'),
         occupancies: occupancies,

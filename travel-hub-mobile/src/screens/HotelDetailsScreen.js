@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -54,6 +54,8 @@ const MOCK_CATEGORIES = [
   { label: 'Restauration', score: 5, color: '#F59E0B' },
   { label: 'Expérience', score: 9, color: '#10B981' },
 ];
+
+import { calculateDistance, formatDistance } from '../utils/distance';
 
 export const HotelDetailsScreen = ({ navigation }) => {
   const { selectedHotel, searchParams } = useBooking();
@@ -175,9 +177,30 @@ export const HotelDetailsScreen = ({ navigation }) => {
     } catch (error) {
       console.error('Failed to load more reviews:', error);
     } finally {
-      setLoadingMoreReviews(false);
+      setTotalReviews(0);
+      setReviews(null);
     }
   };
+
+  // Memoize distance calculation to avoid recalculating on every render
+  const distanceText = useMemo(() => {
+    if (!searchParams.searchLocation || !hotel?.location) {
+      return null;
+    }
+
+    try {
+      const distance = calculateDistance(
+        searchParams.searchLocation.latitude,
+        searchParams.searchLocation.longitude,
+        parseFloat(hotel.location.latitude),
+        parseFloat(hotel.location.longitude)
+      );
+      return formatDistance(distance);
+    } catch (error) {
+      console.error('Error calculating distance:', error);
+      return null;
+    }
+  }, [searchParams.searchLocation, hotel?.location]);
 
   if (!selectedHotel && !hotelDetails) {
     return (
@@ -356,7 +379,10 @@ export const HotelDetailsScreen = ({ navigation }) => {
               <View style={styles.locationLeft}>
                 <Ionicons name="location-outline" size={16} color="#6B7280" />
                 <Text style={styles.locationText} numberOfLines={1}>
-                  {hotel.city ? `À 1,2 km du centre-ville, ${hotel.city}` : fullAddress}
+                  {distanceText
+                    ? `À ${distanceText} de ${searchParams.searchLocation.description || searchParams.placeName || 'la recherche'}`
+                    : (hotel.city || fullAddress)
+                  }
                 </Text>
               </View>
               <View style={styles.ratingRight}>
@@ -417,19 +443,19 @@ export const HotelDetailsScreen = ({ navigation }) => {
               <MapView
                 provider={PROVIDER_GOOGLE}
                 style={styles.map}
-                initialRegion={{
-                  latitude: hotel.location?.latitude || 31.6295,
-                  longitude: hotel.location?.longitude || -7.9811,
-                  latitudeDelta: 0.01,
-                  longitudeDelta: 0.01,
+                region={{
+                  latitude: parseFloat(hotel.location?.latitude) || 31.6295,
+                  longitude: parseFloat(hotel.location?.longitude) || -7.9811,
+                  latitudeDelta: 0.02,
+                  longitudeDelta: 0.02,
                 }}
-                scrollEnabled={false}
-                zoomEnabled={false}
+                scrollEnabled={true}
+                zoomEnabled={true}
               >
                 <Marker
                   coordinate={{
-                    latitude: hotel.location?.latitude || 31.6295,
-                    longitude: hotel.location?.longitude || -7.9811,
+                    latitude: parseFloat(hotel.location?.latitude) || 31.6295,
+                    longitude: parseFloat(hotel.location?.longitude) || -7.9811,
                   }}
                 >
                   <View style={styles.mapMarkerContainer}>
