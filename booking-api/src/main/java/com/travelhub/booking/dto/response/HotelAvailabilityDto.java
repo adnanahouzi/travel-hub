@@ -3,15 +3,13 @@ package com.travelhub.booking.dto.response;
 import java.math.BigDecimal;
 import java.util.List;
 
-    public class HotelAvailabilityDto {
+public class HotelAvailabilityDto {
     // From HotelInfo
     private String hotelId;
     private String name;
     private String mainPhoto;
     private String address;
     private BigDecimal rating;
-
-
     
     // From HotelRate
     private List<RoomTypeDto> roomTypes;

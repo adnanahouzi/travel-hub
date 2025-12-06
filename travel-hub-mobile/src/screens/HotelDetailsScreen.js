@@ -82,6 +82,21 @@ export const HotelDetailsScreen = ({ navigation }) => {
     loadReviews();
   }, []);
 
+  const getIcon = (name) => {
+    const lowerName = name.toLowerCase();
+    if (lowerName.includes('wifi')) return 'wifi-outline';
+    if (lowerName.includes('pool') || lowerName.includes('piscine')) return 'water-outline';
+    if (lowerName.includes('spa') || lowerName.includes('massage')) return 'sparkles-outline';
+    if (lowerName.includes('gym') || lowerName.includes('fitness') || lowerName.includes('sport')) return 'barbell-outline';
+    if (lowerName.includes('restaurant') || lowerName.includes('bar') || lowerName.includes('food')) return 'restaurant-outline';
+    if (lowerName.includes('parking')) return 'car-outline';
+    if (lowerName.includes('air') || lowerName.includes('clim')) return 'snow-outline';
+    if (lowerName.includes('family') || lowerName.includes('famille')) return 'people-outline';
+    if (lowerName.includes('handicap')) return 'accessibility-outline';
+    if (lowerName.includes('smoke') || lowerName.includes('fumeur')) return 'ban-outline';
+    return 'checkmark-circle-outline';
+  };
+
   const loadHotelDetails = async () => {
     if (!selectedHotel) return;
 
@@ -293,52 +308,169 @@ export const HotelDetailsScreen = ({ navigation }) => {
             ))}
           </ScrollView>
 
-          {/* View All Photos Button */}
-          <TouchableOpacity
-            style={styles.imageCounter}
-            onPress={() => {
-              setViewerIndex(activeSlide);
-              setShowImageViewer(true);
-            }}
-          >
-            <Ionicons name="images" size={14} color="#FFF" />
-            <Text style={styles.imageCounterText}>
-              {activeSlide + 1} / {images.length}
-            </Text>
-          </TouchableOpacity>
+          {/* View All Photos Button - Updated Style */}
+          <View style={styles.imageCounterContainer}>
+            <TouchableOpacity
+              style={styles.imageCounter}
+              onPress={() => {
+                setViewerIndex(activeSlide);
+                setShowImageViewer(true);
+              }}
+            >
+              <Ionicons name="images" size={14} color="#1F2937" />
+              <Text style={styles.imageCounterText}>
+                {activeSlide + 1}/{images.length}
+              </Text>
+            </TouchableOpacity>
+          </View>
 
-          {/* Header Buttons */}
+          {/* Header Buttons - Updated Style */}
           <View style={styles.headerButtons}>
             <TouchableOpacity style={styles.iconButton} onPress={() => navigation.goBack()}>
-              <Ionicons name="arrow-back" size={24} color="#E85D40" />
+              <Ionicons name="arrow-back" size={24} color="#FFF" />
             </TouchableOpacity>
             <TouchableOpacity style={styles.iconButton}>
-              <Ionicons name="create-outline" size={24} color="#E85D40" />
+              <Ionicons name="heart-outline" size={24} color="#FFF" />
             </TouchableOpacity>
           </View>
         </View>
 
         <View style={styles.contentContainer}>
-          {/* Hotel Title & Dates */}
+          {/* Hotel Title & Info Section - Redesigned */}
           <View style={styles.titleSection}>
-            <Text style={styles.hotelName}>{hotel.name}</Text>
-            <View style={styles.starRow}>
-              <Ionicons name="star" size={16} color="#F59E0B" />
-              <Text style={styles.starText}>{hotel.starRating || 5}</Text>
+            <View style={styles.titleRow}>
+              <Text style={styles.hotelName}>{hotel.name}</Text>
+              <View style={styles.starRow}>
+                {[...Array(5)].map((_, i) => (
+                  <Ionicons
+                    key={i}
+                    name="star"
+                    size={16}
+                    color={i < (hotel.starRating || 5) ? "#F59E0B" : "#E5E7EB"}
+                  />
+                ))}
+              </View>
             </View>
-            <View style={styles.locationRow}>
-              <Ionicons name="location-outline" size={16} color="#6B7280" />
-              <Text style={styles.locationText}>{fullAddress}</Text>
+
+            <View style={styles.locationInfoRow}>
+              <View style={styles.locationLeft}>
+                <Ionicons name="location-outline" size={16} color="#6B7280" />
+                <Text style={styles.locationText} numberOfLines={1}>
+                  {hotel.city ? `À 1,2 km du centre-ville, ${hotel.city}` : fullAddress}
+                </Text>
+              </View>
+              <View style={styles.ratingRight}>
+                <Text style={styles.ratingScore}>{(hotel.rating || 8.2).toFixed(1).replace('.', ',')}</Text>
+                <Text style={styles.ratingCount}>{reviews?.total || 2832} Avis</Text>
+              </View>
             </View>
           </View>
 
-          {/* Services Section (HTML description) */}
+          {/* Booking Summary Card - NEW */}
+          <View style={styles.bookingCard}>
+            <View style={styles.bookingRow}>
+              <Text style={styles.bookingLabel}>Date</Text>
+              <View style={styles.bookingValueContainer}>
+                <Ionicons name="calendar-outline" size={16} color="#E85D40" style={{ marginRight: 6 }} />
+                <Text style={styles.bookingValueRed}>
+                  {searchParams.checkin ?
+                    `${format(new Date(searchParams.checkin), 'dd', { locale: fr })} - ${format(new Date(searchParams.checkout), 'dd MMM', { locale: fr })}` :
+                    '07 - 12 Déc'}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.bookingRow}>
+              <Text style={styles.bookingLabel}>Réserver pour</Text>
+              <View style={styles.bookingValueContainer}>
+                <Ionicons name="people-outline" size={16} color="#E85D40" style={{ marginRight: 6 }} />
+                <Text style={styles.bookingValueRed}>
+                  {searchParams.occupancies ?
+                    `${searchParams.occupancies.reduce((acc, curr) => acc + curr.adults + curr.children.length, 0)} personnes` :
+                    '5 personnes'}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.bookingRow}>
+              <Text style={styles.bookingLabel}>Prix <Text style={styles.bookingLabelSmall}>(à partir de)</Text></Text>
+              <Text style={styles.bookingPrice}>
+                {totalPrice > 0 ? totalPrice.toLocaleString('fr-FR', { minimumFractionDigits: 2 }) : '4.350,00'} {currency}
+              </Text>
+            </View>
+
+            <View style={styles.bookingRow}>
+              <Text style={styles.bookingLabel}>Points que vous gagnez</Text>
+              <View style={styles.bookingValueContainer}>
+                <View style={styles.coinIcon}>
+                  <Text style={styles.coinText}>$</Text>
+                </View>
+                <Text style={styles.pointsValue}>{Math.floor((totalPrice || 4350) / 10)}</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Location Section - Redesigned */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Localisation</Text>
+            <View style={styles.mapContainer}>
+              <MapView
+                provider={PROVIDER_GOOGLE}
+                style={styles.map}
+                initialRegion={{
+                  latitude: hotel.location?.latitude || 31.6295,
+                  longitude: hotel.location?.longitude || -7.9811,
+                  latitudeDelta: 0.01,
+                  longitudeDelta: 0.01,
+                }}
+                scrollEnabled={false}
+                zoomEnabled={false}
+              >
+                <Marker
+                  coordinate={{
+                    latitude: hotel.location?.latitude || 31.6295,
+                    longitude: hotel.location?.longitude || -7.9811,
+                  }}
+                >
+                  <View style={styles.mapMarkerContainer}>
+                    <Image
+                      source={{ uri: images[0] }}
+                      style={styles.mapMarkerImage}
+                    />
+                  </View>
+                </Marker>
+              </MapView>
+              <TouchableOpacity style={styles.expandMapButton} onPress={openMaps}>
+                <Ionicons name="expand-outline" size={20} color="#1F2937" />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Amenities (Équipements) - Redesigned */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Équipements</Text>
+              <TouchableOpacity onPress={() => setShowAllFacilities(true)}>
+                <Text style={styles.seeAllText}>Tout afficher</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.amenitiesCard}>
+              {displayFacilities.slice(0, 5).map((facility, i) => (
+                <View key={i} style={styles.amenityRow}>
+                  <Ionicons name={getIcon(facility)} size={20} color="#6B7280" style={{ width: 24 }} />
+                  <Text style={styles.amenityText}>{facility}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+
+          {/* Services Section */}
           {hotelDescriptionHtml?.length > 0 && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Services</Text>
-              <View style={styles.htmlCard}>
+              <View style={styles.servicesCard}>
                 <RenderHTML
-                  contentWidth={width - 40}
+                  contentWidth={width - 72}
                   source={{ html: hotelDescriptionHtml }}
                   tagsStyles={{
                     p: { fontSize: 14, color: '#4B5563', lineHeight: 20, marginBottom: 8 },
@@ -352,7 +484,138 @@ export const HotelDetailsScreen = ({ navigation }) => {
             </View>
           )}
 
-          {/* Important Information (HTML list) */}
+
+          {/* Reviews */}
+          {
+            reviews && reviews.data && reviews.data.length > 0 && (
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>Avis</Text>
+                  <TouchableOpacity onPress={() => setShowReviewsModal(true)}>
+                    <Text style={styles.seeAllText}>Lire les {reviews.total || reviews.data.length} avis</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.reviewCard}>
+                  <View style={styles.reviewScoreBox}>
+                    <Text style={styles.reviewScore}>{(hotel.rating || 0).toFixed ? hotel.rating.toFixed(1) : (hotel.rating || 0)}</Text>
+                  </View>
+                  <View>
+                    <Text style={styles.reviewLabel}>
+                      {hotel.rating >= 9 ? 'Excellent' : hotel.rating >= 8 ? 'Très bien' : hotel.rating >= 7 ? 'Bien' : hotel.rating >= 6 ? 'Agréable' : 'Correct'}
+                    </Text>
+                    <Text style={styles.reviewCount}>
+                      Basé sur {(reviews.total || hotel.reviewCount || 0).toLocaleString()} avis
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Positive Highlights from Sentiment Analysis */}
+                {reviews.sentimentAnalysis?.pros && reviews.sentimentAnalysis.pros.length > 0 && (
+                  <>
+                    <Text style={styles.subSectionTitle}>Les éléments les plus appréciés</Text>
+                    <View style={styles.highlightsGrid}>
+                      {reviews.sentimentAnalysis.pros.slice(0, 6).map((pro, i) => (
+                        <View key={i} style={styles.highlightPill}>
+                          <Text style={styles.highlightText}>{pro}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </>
+                )}
+
+                {/* Guest Types from Reviews */}
+                {reviews.data && (() => {
+                  // Calculate guest type percentages from reviews
+                  const typeCounts = {};
+                  reviews.data.forEach(review => {
+                    if (review.type) {
+                      typeCounts[review.type] = (typeCounts[review.type] || 0) + 1;
+                    }
+                  });
+
+                  const total = reviews.data.length;
+                  const guestTypes = Object.entries(typeCounts)
+                    .map(([type, count]) => {
+                      let label = type;
+                      let icon = 'person-outline';
+
+                      const lowerType = type.toLowerCase();
+                      if (lowerType.includes('family') || lowerType.includes('famille')) {
+                        label = 'Familles';
+                        icon = 'people-outline';
+                      } else if (lowerType.includes('couple')) {
+                        label = 'Couples';
+                        icon = 'heart-outline';
+                      } else if (lowerType.includes('solo')) {
+                        label = 'Solo';
+                        icon = 'person-outline';
+                      } else if (lowerType.includes('group')) {
+                        label = 'Group';
+                        icon = 'people-circle-outline';
+                      }
+
+                      return {
+                        label,
+                        value: `${Math.round((count / total) * 100)}%`,
+                        icon
+                      };
+                    })
+                    .sort((a, b) => parseInt(b.value) - parseInt(a.value))
+                    .slice(0, 4);
+
+                  return guestTypes.length > 0 ? (
+                    <>
+                      <Text style={[styles.subSectionTitle, { marginTop: 24 }]}>Types d'invités</Text>
+                      <View style={styles.guestTypesGrid}>
+                        {guestTypes.map((item, i) => (
+                          <View key={i} style={styles.guestTypeItem}>
+                            <View style={styles.guestTypeIconBox}>
+                              <Ionicons name={item.icon} size={24} color="#1F2937" />
+                            </View>
+                            <Text style={styles.guestTypeLabel}>{item.label}</Text>
+                            <Text style={styles.guestTypeValue}>{item.value}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    </>
+                  ) : null;
+                })()}
+
+                {/* Categories from Sentiment Analysis */}
+                {reviews.sentimentAnalysis?.categories && reviews.sentimentAnalysis.categories.length > 0 && (
+                  <>
+                    <Text style={[styles.subSectionTitle, { marginTop: 24 }]}>Catégories d'avis</Text>
+                    <View style={styles.categoriesGrid}>
+                      {reviews.sentimentAnalysis.categories.map((category, i) => {
+                        const rating = parseFloat(category.rating || 0);
+                        const color = rating >= 8 ? '#10B981' : rating >= 6 ? '#F59E0B' : '#EF4444';
+
+                        return (
+                          <View key={i} style={styles.categoryItem}>
+                            <View style={styles.categoryHeader}>
+                              <Text style={styles.categoryLabel}>{category.name}</Text>
+                              <Text style={styles.categoryScore}>{rating.toFixed(1)}</Text>
+                            </View>
+                            <View style={styles.progressBarBg}>
+                              <View
+                                style={[
+                                  styles.progressBarFill,
+                                  { width: `${(rating / 10) * 100}%`, backgroundColor: color }
+                                ]}
+                              />
+                            </View>
+                          </View>
+                        );
+                      })}
+                    </View>
+                  </>
+                )}
+              </View>
+            )
+          }
+
+          {/* Important Information (HTML list) - Moved to bottom */}
           {importantItems.length > 0 && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Informations importantes</Text>
@@ -384,194 +647,11 @@ export const HotelDetailsScreen = ({ navigation }) => {
               </View>
             </View>
           )}
+        </View >
+      </ScrollView >
 
-          {/* Amenities (Avantages) */}
-          {displayFacilities.length > 0 && (
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Avantages</Text>
-                {facilities.length > 10 && (
-                  <TouchableOpacity onPress={() => setShowAllFacilities(true)}>
-                    <Text style={styles.seeAllText}>Voir les {facilities.length} avantages</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-              <View style={styles.amenitiesGrid}>
-                {displayFacilities.map((facility, i) => {
-                  // Map facility names to icons
-                  const getIcon = (name) => {
-                    const lowerName = name.toLowerCase();
-                    if (lowerName.includes('restaurant') || lowerName.includes('dining')) return 'restaurant-outline';
-                    if (lowerName.includes('pool') || lowerName.includes('piscine')) return 'water-outline';
-                    if (lowerName.includes('wifi') || lowerName.includes('internet')) return 'wifi-outline';
-                    if (lowerName.includes('parking')) return 'car-outline';
-                    if (lowerName.includes('gym') || lowerName.includes('fitness')) return 'barbell-outline';
-                    if (lowerName.includes('spa')) return 'sparkles-outline';
-                    if (lowerName.includes('family') || lowerName.includes('famille')) return 'people-outline';
-                    if (lowerName.includes('handicap') || lowerName.includes('accessibility')) return 'accessibility-outline';
-                    if (lowerName.includes('smoking') || lowerName.includes('fumeur')) return 'ban-outline';
-                    if (lowerName.includes('air') || lowerName.includes('conditioning')) return 'snow-outline';
-                    if (lowerName.includes('bar')) return 'wine-outline';
-                    if (lowerName.includes('room service')) return 'receipt-outline';
-                    return 'checkmark-circle-outline';
-                  };
-
-                  return (
-                    <View key={i} style={styles.amenityPill}>
-                      <Ionicons name={getIcon(facility)} size={16} color="#6B7280" />
-                      <Text style={styles.amenityText}>{facility}</Text>
-                    </View>
-                  );
-                })}
-              </View>
-            </View>
-          )}
-
-          {/* Location Map */}
-          {hotel.location?.latitude && hotel.location?.longitude && (
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Emplacement</Text>
-                <TouchableOpacity onPress={openMaps}>
-                  <Text style={styles.seeAllText}>
-                    Ouvrir dans {Platform.OS === 'ios' ? 'Plans' : 'Maps'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-              <View style={styles.mapCard}>
-                <MapView
-                  style={styles.map}
-                  provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
-                  initialRegion={{
-                    latitude: hotel.location.latitude,
-                    longitude: hotel.location.longitude,
-                    latitudeDelta: 0.01,
-                    longitudeDelta: 0.01,
-                  }}
-                  scrollEnabled={true}
-                  zoomEnabled={true}
-                  pitchEnabled={false}
-                  rotateEnabled={false}
-                >
-                  <Marker
-                    coordinate={{
-                      latitude: hotel.location.latitude,
-                      longitude: hotel.location.longitude,
-                    }}
-                    title={hotel.name}
-                    description={fullAddress}
-                    pinColor="#E85D40"
-                  />
-                </MapView>
-              </View>
-              {fullAddress && (
-                <View style={styles.addressContainer}>
-                  <Ionicons name="location-outline" size={16} color="#6B7280" />
-                  <Text style={styles.addressText}>{fullAddress}</Text>
-                </View>
-              )}
-            </View>
-          )}
-
-          {/* Reviews */}
-          {reviews && reviews.data && reviews.data.length > 0 && (
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Avis</Text>
-                <TouchableOpacity onPress={() => setShowReviewsModal(true)}>
-                  <Text style={styles.seeAllText}>Tout afficher</Text>
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.reviewCard}>
-                <View style={styles.reviewScoreBox}>
-                  <Text style={styles.reviewScore}>{(hotel.rating || 0).toFixed ? hotel.rating.toFixed(1).replace('.', ',') : (hotel.rating || 0)}</Text>
-                </View>
-                <View>
-                  <Text style={styles.reviewLabel}>
-                    {hotel.rating >= 9 ? 'Excellent' : hotel.rating >= 8 ? 'Très bien' : hotel.rating >= 7 ? 'Bien' : hotel.rating >= 6 ? 'Agréable' : 'Correct'}
-                  </Text>
-                  <Text style={styles.reviewCount}>
-                    Basé sur {(reviews.total || hotel.reviewCount || 0).toLocaleString()} avis
-                  </Text>
-                </View>
-              </View>
-
-              {/* Category Scores as Pills */}
-              {reviews.sentimentAnalysis?.categories && reviews.sentimentAnalysis.categories.length > 0 && (
-                <>
-                  <Text style={styles.subSectionTitle}>Les éléments les plus appréciés</Text>
-                  <View style={styles.highlightsGrid}>
-                    {reviews.sentimentAnalysis.categories.map((category, i) => {
-                      const rating = parseFloat(category.rating || 0);
-                      return (
-                        <View key={i} style={styles.highlightPill}>
-                          <Text style={styles.highlightText}>
-                            {category.name} ({rating.toFixed(1).replace('.', ',')})
-                          </Text>
-                        </View>
-                      );
-                    })}
-                  </View>
-                </>
-              )}
-
-              {/* Guest Types from Reviews */}
-              {reviews.data && (() => {
-                // Calculate guest type percentages from reviews
-                const typeCounts = {};
-                reviews.data.forEach(review => {
-                  if (review.type) {
-                    typeCounts[review.type] = (typeCounts[review.type] || 0) + 1;
-                  }
-                });
-
-                const total = reviews.data.length;
-                const guestTypes = Object.entries(typeCounts)
-                  .map(([type, count]) => ({
-                    label: type,
-                    value: `${Math.round((count / total) * 100)}%`,
-                    icon: type.toLowerCase().includes('couple') ? 'heart-outline' :
-                      type.toLowerCase().includes('family') || type.toLowerCase().includes('famille') ? 'people-outline' :
-                        type.toLowerCase().includes('solo') ? 'person-outline' :
-                          type.toLowerCase().includes('group') ? 'people-circle-outline' :
-                            'person-outline',
-                  }))
-                  .sort((a, b) => parseInt(b.value) - parseInt(a.value))
-                  .slice(0, 4);
-
-                return guestTypes.length > 0 ? (
-                  <>
-                    <Text style={[styles.subSectionTitle, { marginTop: 24 }]}>Types d'invités</Text>
-                    <View style={styles.guestTypesGrid}>
-                      {guestTypes.map((item, i) => (
-                        <View key={i} style={styles.guestTypeItem}>
-                          <View style={styles.guestTypeIconBox}>
-                            <Ionicons name={item.icon} size={24} color="#1F2937" />
-                          </View>
-                          <Text style={styles.guestTypeLabel}>{item.label}</Text>
-                          <Text style={styles.guestTypeValue}>{item.value}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  </>
-                ) : null;
-              })()}
-
-
-            </View>
-          )}
-        </View>
-      </ScrollView>
-
-      {/* Footer */}
+      {/* Footer - Redesigned */}
       <View style={styles.footer}>
-        <View>
-          <Text style={styles.fromText}>À partir de</Text>
-          <Text style={styles.footerPrice}>
-            {totalPrice.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {currency}
-          </Text>
-        </View>
         <TouchableOpacity
           style={styles.bookButton}
           onPress={() => {
@@ -909,7 +989,7 @@ export const HotelDetailsScreen = ({ navigation }) => {
           </View>
         </View>
       </Modal>
-    </View>
+    </View >
   );
 };
 
@@ -919,7 +999,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF',
   },
   sliderContainer: {
-    height: 300,
+    height: 380, // Increased height for full screen effect
     position: 'relative',
   },
   slider: {
@@ -927,81 +1007,210 @@ const styles = StyleSheet.create({
   },
   sliderImage: {
     width: width,
-    height: 300,
+    height: 380,
   },
-  imageCounter: {
+  imageCounterContainer: {
     position: 'absolute',
     bottom: 20,
     right: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    zIndex: 10,
+  },
+  imageCounter: {
+    backgroundColor: '#FFF',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
   },
   imageCounterText: {
-    color: '#FFF',
+    color: '#1F2937',
     fontSize: 12,
     fontWeight: '600',
-    marginLeft: 4,
+    marginLeft: 6,
   },
   headerButtons: {
     position: 'absolute',
-    top: Platform.OS === 'ios' ? 50 : 20,
-    left: 20,
-    right: 20,
+    top: Platform.OS === 'ios' ? 50 : 30,
+    left: 0,
+    right: 0,
     flexDirection: 'row',
     justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    zIndex: 10,
   },
   iconButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.2)', // Slight dark overlay for visibility
     justifyContent: 'center',
+    alignItems: 'center',
+  },
+  contentContainer: {
+    backgroundColor: '#FFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    marginTop: -24,
+    paddingTop: 24,
+    paddingHorizontal: 20,
+  },
+  titleSection: {
+    marginBottom: 24,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+  },
+  hotelName: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#111827',
+    flex: 1,
+    marginRight: 12,
+  },
+  starRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+  },
+  locationInfoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  locationLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 16,
+  },
+  locationText: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginLeft: 4,
+    flex: 1,
+  },
+  ratingRight: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+  },
+  ratingScore: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#10B981',
+    marginRight: 6,
+  },
+  ratingCount: {
+    fontSize: 13,
+    color: '#9CA3AF',
+  },
+
+  // Booking Summary Card Styles
+  bookingCard: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
+  },
+  bookingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  bookingLabel: {
+    fontSize: 15,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  bookingLabelSmall: {
+    fontSize: 12,
+    fontWeight: '400',
+  },
+  bookingValueContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  bookingValueRed: {
+    fontSize: 15,
+    color: '#E85D40',
+    fontWeight: '600',
+  },
+  bookingPrice: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  coinIcon: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#F59E0B', // Gold color
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 6,
+    borderWidth: 1.5,
+    borderColor: '#FCD34D',
+  },
+  coinText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFF',
+  },
+  pointsValue: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#D97706', // Darker gold for text
+  },
+
+  // Map Styles
+  mapContainer: {
+    height: 180,
+    borderRadius: 16,
+    overflow: 'hidden',
+    marginTop: 12,
+    position: 'relative',
+  },
+  map: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  mapMarkerContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#FFF',
+    padding: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  mapMarkerImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 20,
+  },
+  expandMapButton: {
+    position: 'absolute',
+    bottom: 12,
+    right: 12,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#FFF',
+    justifyContent: 'center',
+    alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
-  },
-  contentContainer: {
-    padding: 20,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    backgroundColor: '#FFF',
-    marginTop: -20,
-  },
-  titleSection: {
-    marginBottom: 24,
-  },
-  hotelName: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#1F2937',
-    marginBottom: 8,
-  },
-  starRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  starText: {
-    marginLeft: 4,
-    fontWeight: '600',
-    color: '#F59E0B',
-  },
-  locationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  locationText: {
-    marginLeft: 6,
-    color: '#6B7280',
-    fontSize: 14,
   },
   section: {
     marginBottom: 32,
@@ -1174,7 +1383,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#EDE9FE',
+    backgroundColor: '#F9FAFB',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 8,
@@ -1222,6 +1431,31 @@ const styles = StyleSheet.create({
     height: '100%',
     borderRadius: 3,
   },
+  // Amenities Styles
+  amenitiesCard: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 16,
+    padding: 16,
+  },
+  amenityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  amenityText: {
+    fontSize: 14,
+    color: '#4B5563',
+    marginLeft: 12,
+    fontWeight: '500',
+  },
+
+  // Services Styles
+  servicesCard: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 16,
+    padding: 16,
+  },
+
   footer: {
     position: 'absolute',
     bottom: 0,
@@ -1229,34 +1463,22 @@ const styles = StyleSheet.create({
     right: 0,
     backgroundColor: '#FFF',
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingTop: 16,
     paddingBottom: Platform.OS === 'ios' ? 34 : 16,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
     elevation: 10,
-  },
-  fromText: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginBottom: 2,
-  },
-  footerPrice: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1F2937',
   },
   bookButton: {
     backgroundColor: '#E85D40',
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    borderRadius: 24,
+    paddingVertical: 16,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   bookButtonText: {
     color: '#FFF',
