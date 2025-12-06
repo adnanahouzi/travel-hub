@@ -53,6 +53,8 @@ public class PrebookResponseDto {
         private List<String> paymentTypes;
         private String checkin;
         private String checkout;
+        private BigDecimal totalIncludedTaxes;
+        private BigDecimal totalExcludedTaxes;
 
         public String getPrebookId() {
             return prebookId;
@@ -205,6 +207,21 @@ public class PrebookResponseDto {
         public void setCheckout(String checkout) {
             this.checkout = checkout;
         }
+
+        public BigDecimal getTotalIncludedTaxes() {
+            return totalIncludedTaxes;
+        }
+
+        public void setTotalIncludedTaxes(BigDecimal totalIncludedTaxes) {
+            this.totalIncludedTaxes = totalIncludedTaxes;
+        }
+
+        public BigDecimal getTotalExcludedTaxes() {
+            return totalExcludedTaxes;
+        }
+
+        public void setTotalExcludedTaxes(BigDecimal totalExcludedTaxes) {
+            this.totalExcludedTaxes = totalExcludedTaxes;
+        }
     }
 }
-

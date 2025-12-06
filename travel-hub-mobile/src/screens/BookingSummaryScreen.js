@@ -7,10 +7,12 @@ import {
   TouchableOpacity,
   StyleSheet,
   Platform,
-  Modal,
+  Alert,
   Dimensions,
-  Alert
+  Modal,
+  useWindowDimensions
 } from 'react-native';
+import RenderHtml from 'react-native-render-html';
 import { Ionicons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -19,184 +21,341 @@ import { useBooking } from '../context/BookingContext';
 const { width } = Dimensions.get('window');
 
 export const BookingSummaryScreen = ({ navigation, route }) => {
-  const { rate, prebookData } = route.params;
+  const { selectedRooms, batchResponse, reviewsSummary } = route.params;
   const { selectedHotel, searchParams } = useBooking();
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
 
-  // Use prebook data if available, otherwise fall back to rate
-  const totalPrice = prebookData?.price || rate.retailRate.total[0].amount;
-  const prebookId = prebookData?.prebookId;
-  const currency = prebookData?.currency || rate.retailRate.total[0].currency;
-  const points = Math.round(totalPrice * 10);
-  const checkinDate = new Date(prebookData?.checkin || searchParams.checkin);
-  const checkoutDate = new Date(prebookData?.checkout || searchParams.checkout);
+  // Data Mapping
+  const totalPrice = batchResponse.totalAmount || 0;
+  const currency = batchResponse.currency || 'MAD';
+  const prebookResponses = batchResponse.responses || [];
 
-  const renderPaymentModal = () => (
-    <Modal
-      visible={showPaymentModal}
-      animationType="slide"
-      transparent={true}
-      onRequestClose={() => setShowPaymentModal(false)}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Options de paiement</Text>
-            <TouchableOpacity onPress={() => setShowPaymentModal(false)}>
-              <Ionicons name="close" size={24} color="#1F2937" />
-            </TouchableOpacity>
-          </View>
+  // Get T&Cs from the first response
+  const termsAndConditions = prebookResponses[0]?.data?.termsAndConditions;
 
-          <Text style={styles.paymentLabel}>Attijari Pay</Text>
-          <TouchableOpacity style={styles.paymentOptionCard}>
-            <View style={styles.walletIcon}>
-              <Ionicons name="wallet" size={24} color="#D97706" />
-            </View>
-            <View style={{flex: 1}}>
-              <Text style={styles.walletTitle}>Solde du compte</Text>
-              <Text style={styles.walletSub}>**** ******** 3564</Text>
-            </View>
-            <Text style={styles.walletBalance}>36 461,20DH</Text>
-          </TouchableOpacity>
+  const points = Math.round(totalPrice * 0.1); // 10% points
 
-          <Text style={styles.paymentLabel}>Autres options</Text>
-          <View style={styles.otherOptionsRow}>
-            <TouchableOpacity style={styles.otherOptionBtn}>
-              <Ionicons name="add-circle-outline" size={20} color="#6B7280" />
-              <Text style={styles.otherOptionText}>Ajouter de l'argent</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.otherOptionBtn}>
-              <Ionicons name="swap-horizontal-outline" size={20} color="#6B7280" />
-              <Text style={styles.otherOptionText}>Échange</Text>
-            </TouchableOpacity>
-          </View>
+  const checkinDate = new Date(prebookResponses[0]?.data?.checkin || searchParams.checkin);
+  const checkoutDate = new Date(prebookResponses[0]?.data?.checkout || searchParams.checkout);
 
-          <View style={{flex: 1}} />
+  // Formatting
+  const formattedPrice = new Intl.NumberFormat('fr-MA', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(totalPrice);
 
-          <TouchableOpacity 
-            style={styles.confirmPayBtn}
-            onPress={() => {
-              setShowPaymentModal(false);
-              // TODO: Call the book API with prebookId
-              Alert.alert(
-                'Succès', 
-                `Réservation confirmée !\nPrebook ID: ${prebookId || 'N/A'}`
-              );
-              navigation.navigate('Search');
-            }}
-          >
-            <Text style={styles.confirmPayText}>Payez {Math.round(totalPrice)} {currency}</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </Modal>
-  );
+  const handleConfirm = () => {
+    // In a real app, this would call the booking API with all prebookIds
+    const prebookIds = prebookResponses.map(r => r.data?.prebookId).join(', ');
+
+    Alert.alert(
+      'Réservation confirmée',
+      `Votre réservation a été confirmée avec succès.\nRéférences: ${prebookIds}`,
+      [
+        {
+          text: 'OK',
+          onPress: () => navigation.navigate('Search')
+        }
+      ]
+    );
+  };
+
+  const handleCancel = () => {
+    navigation.goBack();
+  };
+
+  // Modal State
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalContent, setModalContent] = useState('');
+  const { width: contentWidth } = useWindowDimensions();
+
+  const openConditionsModal = (content) => {
+    setModalContent(content);
+    setModalVisible(true);
+  };
 
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#1F2937" />
+          <Ionicons name="arrow-back" size={24} color="#E85D40" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Vérifier</Text>
-        <View style={{width: 24}} />
+        <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{paddingBottom: 100}}>
-        {/* Hotel Summary Card */}
-        <View style={styles.hotelCard}>
-          <Image
-            source={{ uri: selectedHotel.mainPhoto || 'https://via.placeholder.com/400x200' }}
-            style={styles.hotelImage}
-            resizeMode="cover"
-          />
-          <View style={styles.hotelOverlay}>
-            <Text style={styles.hotelName}>{selectedHotel.name}</Text>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+
+        {/* Hotel Info */}
+        {/* Hotel Info */}
+        <View style={styles.hotelSection}>
+          <View style={styles.hotelInfoContainer}>
+            {/* Left Column: Name, Stars, Address */}
+            <View style={styles.hotelInfoLeft}>
+              <Text style={styles.hotelName}>{selectedHotel.name}</Text>
+
+              <View style={styles.starRow}>
+                {[...Array(5)].map((_, i) => (
+                  <Ionicons
+                    key={i}
+                    name="star"
+                    size={14}
+                    color={i < (selectedHotel.starRating || 5) ? "#F59E0B" : "#E5E7EB"}
+                  />
+                ))}
+              </View>
+
+              <View style={styles.addressRow}>
+                <Ionicons name="location-outline" size={14} color="#6B7280" />
+                <Text style={styles.addressText} numberOfLines={2}>{selectedHotel.address}</Text>
+              </View>
+            </View>
+
+            {/* Right Column: Image and Rating */}
+            <View style={styles.hotelInfoRight}>
+              <Image
+                source={{ uri: selectedHotel.mainPhoto || 'https://via.placeholder.com/400x200' }}
+                style={styles.hotelImage}
+                resizeMode="cover"
+              />
+              <View style={styles.ratingBadge}>
+                <Text style={styles.ratingScore}>{(reviewsSummary?.rating || selectedHotel.rating || 0).toFixed(1)}</Text>
+                <Text style={styles.ratingCount}>{reviewsSummary?.total || selectedHotel.reviewCount || 0} avis</Text>
+              </View>
+            </View>
           </View>
         </View>
 
-        {/* Timeline */}
-        <View style={styles.timelineCard}>
-          <View style={styles.timelineRow}>
-            <View style={styles.timelineLeft}>
-              <Text style={styles.timelineLabel}>Enregistrement</Text>
-              <Text style={styles.timelineDate}>{format(checkinDate, 'EEE dd MMMM', {locale: fr})}</Text>
-              <Text style={styles.timelineTime}>14h00 - 00h00</Text>
+        {/* Dates & Price Card */}
+        <View style={styles.summaryCard}>
+          {/* Dates */}
+          <View style={styles.dateRow}>
+            <Text style={styles.dateLabel}>Arrivé</Text>
+            <Text style={styles.dateValue}>
+              {format(checkinDate, 'dd MMMM', { locale: fr })}, 14h00 - 00h00
+            </Text>
+          </View>
+
+          <View style={styles.dateRow}>
+            <Text style={styles.dateLabel}>Départ</Text>
+            <Text style={styles.dateValue}>
+              {format(checkoutDate, 'dd MMMM', { locale: fr })}, jusqu'à 12h00
+            </Text>
+          </View>
+
+          <View style={styles.divider} />
+
+          {/* Price Breakdown */}
+          <View style={styles.priceRow}>
+            <Text style={styles.priceLabel}>Payez maintenant</Text>
+            <Text style={styles.priceValue}>{formattedPrice} {currency}</Text>
+          </View>
+
+          {batchResponse.totalIncludedTaxes > 0 && (
+            <View style={styles.taxRow}>
+              <Text style={styles.taxLabel}>Taxes et frais inclus</Text>
+              <Text style={styles.taxValue}>{new Intl.NumberFormat('fr-MA', { minimumFractionDigits: 2 }).format(batchResponse.totalIncludedTaxes)} {currency}</Text>
             </View>
-            <View style={styles.timelineCenter}>
-              <View style={styles.timelineLine} />
-              <View style={styles.timelineDot} />
+          )}
+
+          {batchResponse.totalExcludedTaxes > 0 && (
+            <View style={styles.taxRow}>
+              <Text style={styles.taxLabel}>Total à payer sur place</Text>
+              <Text style={styles.taxValue}>{new Intl.NumberFormat('fr-MA', { minimumFractionDigits: 2 }).format(batchResponse.totalExcludedTaxes)} {currency}</Text>
             </View>
-            <View style={styles.timelineRight}>
-              <Text style={styles.timelineLabel}>Vérifier</Text>
-              <Text style={styles.timelineDate}>{format(checkoutDate, 'EEE dd MMMM', {locale: fr})}</Text>
-              <Text style={styles.timelineTime}>Jusqu'à 12h00</Text>
+          )}
+
+
+
+          <View style={styles.divider} />
+
+
+
+          <View style={styles.pointsRow}>
+            <Text style={styles.pointsLabel}>Points que vous gagnez</Text>
+            <View style={styles.pointsValueContainer}>
+              <Ionicons name="flash" size={14} color="#FFF" />
+              <Text style={styles.pointsValueText}>{points}</Text>
             </View>
           </View>
         </View>
 
-        {/* Map & Address */}
-        <View style={styles.mapCard}>
-          <View style={styles.mapInfo}>
-            <Ionicons name="location" size={20} color="#374151" />
-            <Text style={styles.addressText} numberOfLines={2}>{selectedHotel.address}</Text>
-          </View>
-          <Image 
-            source={{ uri: 'https://via.placeholder.com/100x100.png?text=Map' }} 
-            style={styles.mapImage} 
-          />
+        {/* Traveler Info */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Informations de voyage</Text>
+          <TouchableOpacity>
+            <Text style={styles.editLink}>Modifier</Text>
+          </TouchableOpacity>
         </View>
 
-        {/* Actions List */}
-        <View style={styles.actionsList}>
-          {[
-            'Contacter la propriété', 
-            'Gérer la réservation', 
-            'Ajouter une réservation au calendrier',
-            'Détails de la propriété'
-          ].map((action, i) => (
-            <TouchableOpacity key={i} style={styles.actionItem}>
-              <Text style={styles.actionText}>{action}</Text>
-              <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-            </TouchableOpacity>
-          ))}
+        <View style={styles.infoCard}>
+          <View style={styles.infoRow}>
+            <Ionicons name="person-outline" size={20} color="#6B7280" />
+            <Text style={styles.infoText}>John Doe</Text>
+          </View>
+          <View style={styles.infoRow}>
+            <Ionicons name="phone-portrait-outline" size={20} color="#6B7280" />
+            <Text style={styles.infoText}>+212 60000000</Text>
+          </View>
+          <View style={styles.infoRow}>
+            <Ionicons name="mail-outline" size={20} color="#6B7280" />
+            <Text style={styles.infoText}>john.doe@email.com</Text>
+          </View>
+          <View style={styles.infoRow}>
+            <Ionicons name="document-text-outline" size={20} color="#6B7280" />
+            <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'space-between' }}>
+              <Text style={styles.infoLabel}>Demandes spéciales</Text>
+              <Text style={styles.infoValue}>Aucun</Text>
+            </View>
+          </View>
         </View>
 
-        {/* Payment Section */}
-        <View style={styles.paymentSection}>
-          <View style={styles.paymentHeader}>
-            <Text style={styles.paymentTitle}>Paiements</Text>
-            <Text style={styles.paymentDetails}>Détails</Text>
-          </View>
-          
-          <View style={styles.paymentCard}>
-            <View style={styles.paymentIcon}>
-              <Ionicons name="key-outline" size={24} color="#E85D40" />
-            </View>
-            <View style={{flex: 1}}>
-              <Text style={styles.paymentText}>Séjours</Text>
-              <Text style={styles.paymentSubtext}>Aujourd'hui</Text>
-            </View>
-            <Text style={styles.paymentPoints}>+{points} points</Text>
-          </View>
+        {/* Rooms Section */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Chambres</Text>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <Text style={styles.editLink}>Modifier</Text>
+          </TouchableOpacity>
         </View>
+
+        {prebookResponses.map((response, index) => {
+          // Extract rate details from the response
+          // Structure: response.data.roomTypes[0].rates[0]
+          const roomType = response.data?.roomTypes?.[0];
+          const rate = roomType?.rates?.[0];
+          console.log('Debug Rate:', JSON.stringify(rate, null, 2));
+
+          if (!rate) return null;
+
+          const ratePrice = rate.retailRate?.total?.[0]?.amount || 0;
+          const rateCurrency = rate.retailRate?.total?.[0]?.currency || 'MAD';
+          const commission = rate.commission?.[0]?.amount || 0;
+          const commissionCurrency = rate.commission?.[0]?.currency || 'MAD';
+
+          return (
+            <View key={index} style={styles.roomCard}>
+              {/* Image removed as per request */}
+              <View style={styles.roomDetails}>
+                <Text style={styles.roomName}>{rate.name}</Text>
+
+                <View style={styles.roomSpecs}>
+                  <Ionicons name="bed-outline" size={14} color="#6B7280" />
+                  <Text style={styles.roomSpecText}>
+                    {(rate.adultCount || 0) + (rate.childCount || 0)} personnes
+                  </Text>
+                  {rate.boardName && (
+                    <>
+                      <View style={styles.specDot} />
+                      <Text style={styles.roomSpecText}>{rate.boardName}</Text>
+                    </>
+                  )}
+                </View>
+
+                <View style={styles.rateFinancials}>
+                  <Text style={styles.ratePrice}>
+                    Prix: {new Intl.NumberFormat('fr-MA', { minimumFractionDigits: 2 }).format(ratePrice)} {rateCurrency}
+                  </Text>
+
+                  {/* Taxes */}
+                  {response.data?.totalIncludedTaxes > 0 && (
+                    <Text style={styles.taxText}>
+                      Taxes et frais inclus: {new Intl.NumberFormat('fr-MA', { minimumFractionDigits: 2 }).format(response.data.totalIncludedTaxes)} {rateCurrency}
+                    </Text>
+                  )}
+                  {response.data?.totalExcludedTaxes > 0 && (
+                    <Text style={styles.taxText}>
+                      Taxes à payer sur place: {new Intl.NumberFormat('fr-MA', { minimumFractionDigits: 2 }).format(response.data.totalExcludedTaxes)} {rateCurrency}
+                    </Text>
+                  )}
+
+                  {/* Cancellation Policy */}
+                  <View style={styles.cancellationContainer}>
+                    {rate.cancellationPolicies?.refundableTag === 'NRFN' ? (
+                      <View style={styles.policyRow}>
+                        <Ionicons name="close-circle-outline" size={14} color="#EF4444" />
+                        <Text style={[styles.policyText, { color: '#EF4444' }]}>Non remboursable</Text>
+                      </View>
+                    ) : (
+                      rate.cancellationPolicies?.cancelPolicyInfos?.length > 0 && (
+                        <View style={styles.policyRow}>
+                          <Ionicons name="checkmark-circle-outline" size={14} color="#059669" />
+                          <Text style={[styles.policyText, { color: '#059669' }]}>
+                            Annulation gratuite avant le {rate.cancellationPolicies.cancelPolicyInfos[0]?.cancelTime ? format(new Date(rate.cancellationPolicies.cancelPolicyInfos[0].cancelTime), 'dd/MM/yyyy') : ''}
+                          </Text>
+                        </View>
+                      )
+                    )}
+                  </View>
+
+                  {/* Reservation Conditions Link */}
+                  {(rate.remarks || termsAndConditions) && (
+                    <TouchableOpacity
+                      onPress={() => openConditionsModal(rate.remarks ? `${rate.remarks}<br/><br/>${termsAndConditions || ''}` : termsAndConditions)}
+                      style={styles.conditionsLinkContainer}
+                    >
+                      <Text style={styles.conditionsLinkText}>Conditions de réservations chambre</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+            </View>
+          );
+        })}
+
+        <Text style={styles.disclaimer}>
+          En réservant, vous acceptez les conditions de séjours et les conditions des points AWB , et comprenez que nous partagerons vos données personnelles pour faciliter votre réservation.
+        </Text>
+
       </ScrollView>
 
-      {/* Fixed Bottom Button */}
+      {/* Footer */}
       <View style={styles.footer}>
-        <TouchableOpacity 
-          style={styles.payButton}
-          onPress={() => setShowPaymentModal(true)}
-        >
-          <Text style={styles.payButtonText}>
-            Payez {Math.round(totalPrice)} {currency}
-            {prebookId && ` • Session: ${prebookId.substring(0, 8)}...`}
-          </Text>
+        <View style={styles.totalContainer}>
+          <Text style={styles.footerLabel}>Total a payer:</Text>
+          <Text style={styles.footerSubLabel}>*frais de service inclus</Text>
+        </View>
+        <Text style={styles.footerPrice}>{formattedPrice} {currency}</Text>
+      </View>
+
+      <View style={styles.actionButtons}>
+        <TouchableOpacity onPress={handleCancel} style={styles.cancelButton}>
+          <Text style={styles.cancelButtonText}>Annuler</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={handleConfirm} style={styles.confirmButton}>
+          <Text style={styles.confirmButtonText}>Confirmer</Text>
         </TouchableOpacity>
       </View>
 
-      {renderPaymentModal()}
+      {/* Conditions Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Conditions de réservation</Text>
+              <TouchableOpacity onPress={() => setModalVisible(false)}>
+                <Ionicons name="close" size={24} color="#1F2937" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalScroll}>
+              <RenderHtml
+                contentWidth={contentWidth}
+                source={{ html: modalContent }}
+                tagsStyles={{
+                  p: { marginBottom: 10, fontSize: 14, color: '#374151' },
+                  ul: { marginBottom: 10 },
+                  li: { marginBottom: 5, fontSize: 14, color: '#374151' },
+                  b: { fontWeight: '700', color: '#1F2937' }
+                }}
+              />
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -204,311 +363,414 @@ export const BookingSummaryScreen = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#FFF',
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingTop: Platform.OS === 'ios' ? 60 : 20,
-    paddingBottom: 16,
-    backgroundColor: '#F9FAFB',
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#1F2937',
+    paddingBottom: 10,
   },
   backButton: {
     padding: 4,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 20,
   },
-  hotelCard: {
-    marginHorizontal: 20,
-    height: 200,
-    borderRadius: 24,
-    overflow: 'hidden',
+  scrollContent: {
+    paddingBottom: 150,
+  },
+  hotelSection: {
+    paddingHorizontal: 20,
     marginBottom: 20,
   },
-  hotelImage: {
-    width: '100%',
-    height: '100%',
+  hotelInfoContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
-  hotelOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 20,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+  hotelInfoLeft: {
+    flex: 1,
+    paddingRight: 16,
+  },
+  hotelInfoRight: {
+    alignItems: 'flex-end',
   },
   hotelName: {
-    color: '#FFF',
     fontSize: 20,
     fontWeight: '700',
-  },
-  timelineCard: {
-    backgroundColor: '#FFF',
-    marginHorizontal: 20,
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
-  },
-  timelineRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  timelineLeft: {
-    flex: 1,
-  },
-  timelineRight: {
-    flex: 1,
-    alignItems: 'flex-end', // Changed to right align
-  },
-  timelineCenter: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: 40,
-  },
-  timelineLabel: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginBottom: 4,
-  },
-  timelineDate: {
-    fontSize: 16,
-    fontWeight: '700',
     color: '#1F2937',
     marginBottom: 4,
-    textTransform: 'capitalize',
   },
-  timelineTime: {
-    fontSize: 12,
-    color: '#6B7280',
-  },
-  timelineLine: {
-    width: 1,
-    height: 40,
-    backgroundColor: '#E5E7EB',
-    position: 'absolute',
-  },
-  timelineDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#E85D40',
-  },
-  mapCard: {
+  starRow: {
     flexDirection: 'row',
-    backgroundColor: '#FFF',
-    marginHorizontal: 20,
-    borderRadius: 16,
-    padding: 12,
-    alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 8,
   },
-  mapInfo: {
-    flex: 1,
+  addressRow: {
     flexDirection: 'row',
-    paddingRight: 12,
+    alignItems: 'flex-start',
   },
   addressText: {
-    fontSize: 12,
-    color: '#4B5563',
-    marginLeft: 8,
-    lineHeight: 18,
+    fontSize: 13,
+    color: '#6B7280',
+    marginLeft: 4,
     flex: 1,
+    lineHeight: 18,
   },
-  mapImage: {
-    width: 60,
-    height: 60,
+  hotelImage: {
+    width: 80,
+    height: 80,
     borderRadius: 12,
+    marginBottom: 8,
   },
-  actionsList: {
-    backgroundColor: '#FFF',
+  ratingBadge: {
+    alignItems: 'flex-end',
+  },
+  ratingScore: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1F2937',
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    overflow: 'hidden',
+    marginBottom: 2,
+  },
+  ratingCount: {
+    fontSize: 11,
+    color: '#6B7280',
+  },
+  summaryCard: {
+    backgroundColor: '#F9FAFB',
     marginHorizontal: 20,
-    borderRadius: 16,
-    paddingVertical: 8,
+    borderRadius: 20,
+    padding: 20,
     marginBottom: 24,
   },
-  actionItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-  },
-  actionText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#1F2937',
-  },
-  paymentSection: {
-    marginHorizontal: 20,
-  },
-  paymentHeader: {
+  dateRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 12,
   },
-  paymentTitle: {
+  dateLabel: {
+    fontSize: 15,
+    color: '#6B7280',
+  },
+  dateValue: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#1F2937',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#E5E7EB',
+    marginVertical: 12,
+  },
+  priceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  priceLabel: {
+    fontSize: 15,
+    color: '#6B7280',
+  },
+  priceValue: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  taxRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+    marginTop: 2,
+  },
+  taxLabel: {
+    fontSize: 13,
+    color: '#6B7280',
+  },
+  taxValue: {
+    fontSize: 13,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  totalRow: {
+  },
+  totalLabel: {
     fontSize: 18,
     fontWeight: '700',
     color: '#1F2937',
   },
-  paymentDetails: {
+  totalValue: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1F2937',
+  },
+  pointsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  pointsLabel: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  pointsValueContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F59E0B',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  pointsValueText: {
+    color: '#FFF',
+    fontWeight: '700',
+    fontSize: 14,
+    marginLeft: 4,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#6B7280',
+  },
+  editLink: {
     fontSize: 14,
     color: '#E85D40',
     fontWeight: '600',
   },
-  paymentCard: {
-    backgroundColor: '#FFF',
-    borderRadius: 16,
-    padding: 16,
+  infoCard: {
+    backgroundColor: '#F9FAFB',
+    marginHorizontal: 20,
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 24,
+  },
+  infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: 16,
   },
-  paymentIcon: {
-    width: 40,
-    height: 40,
+  infoText: {
+    fontSize: 15,
+    color: '#1F2937',
+    marginLeft: 12,
+    fontWeight: '500',
+  },
+  infoLabel: {
+    fontSize: 15,
+    color: '#6B7280',
+    marginLeft: 12,
+  },
+  infoValue: {
+    fontSize: 15,
+    color: '#1F2937',
+    fontWeight: '500',
+  },
+  roomCard: {
+    backgroundColor: '#F9FAFB',
+    marginHorizontal: 20,
     borderRadius: 20,
-    backgroundColor: '#FEF2F2',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
+    padding: 16,
+    marginBottom: 24,
   },
-  paymentText: {
+  roomDetails: {
+    flex: 1,
+  },
+  roomName: {
     fontSize: 16,
     fontWeight: '600',
     color: '#1F2937',
+    marginBottom: 8,
   },
-  paymentSubtext: {
+  roomSpecs: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  roomSpecText: {
+    fontSize: 13,
+    color: '#6B7280',
+    marginLeft: 4,
+  },
+  specDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#D1D5DB',
+    marginHorizontal: 8,
+  },
+  rateFinancials: {
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  ratePrice: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  rateCommission: {
+    fontSize: 13,
+    color: '#059669',
+    marginTop: 2,
+  },
+  taxText: {
     fontSize: 12,
     color: '#6B7280',
+    marginTop: 2,
   },
-  paymentPoints: {
+  cancellationContainer: {
+    marginTop: 8,
+  },
+  policyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  policyText: {
+    fontSize: 13,
+    marginLeft: 4,
+    fontWeight: '500',
+  },
+  additionalInfoCard: {
+    backgroundColor: '#F9FAFB',
+    marginHorizontal: 20,
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 16,
+  },
+  bulletPoint: {
+    marginBottom: 12,
+  },
+  bulletText: {
+    fontSize: 14,
+    color: '#374151',
+    lineHeight: 20,
+  },
+  readMoreLink: {
+    fontSize: 14,
+    color: '#E85D40',
+    fontWeight: '600',
+    marginTop: 4,
+  },
+  disclaimer: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    textAlign: 'center',
+    marginHorizontal: 20,
+    lineHeight: 18,
+  },
+  footer: {
+    position: 'absolute',
+    bottom: Platform.OS === 'ios' ? 120 : 100, // Positioned above buttons
+    left: 20,
+    right: 20,
+    backgroundColor: '#FFFF', // Transparent or matching bg
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 16,
+    backgroundColor: '#FFF5F0', // Light orange bg for total
+  },
+  totalContainer: {
+    justifyContent: 'center',
+  },
+  footerLabel: {
+    fontSize: 16,
+    color: '#1F2937',
+    fontWeight: '500',
+  },
+  footerSubLabel: {
+    fontSize: 10,
+    color: '#6B7280',
+  },
+  footerPrice: {
+    fontSize: 20,
     fontWeight: '700',
     color: '#1F2937',
   },
-  footer: {
+  actionButtons: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
     backgroundColor: '#FFF',
-    padding: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    paddingTop: 10,
     paddingBottom: Platform.OS === 'ios' ? 40 : 20,
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  payButton: {
+  cancelButton: {
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#E85D40',
+  },
+  confirmButton: {
     backgroundColor: '#E85D40',
     paddingVertical: 16,
-    borderRadius: 16,
+    paddingHorizontal: 32,
+    borderRadius: 25,
+    flex: 1,
+    marginLeft: 16,
     alignItems: 'center',
   },
-  payButtonText: {
+  confirmButtonText: {
     color: '#FFF',
     fontSize: 16,
     fontWeight: '700',
   },
-  // Modal Styles
+  conditionsLinkContainer: {
+    marginTop: 12,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  conditionsLinkText: {
+    fontSize: 14,
+    color: '#E85D40',
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+  },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end',
   },
   modalContent: {
     backgroundColor: '#FFF',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    padding: 24,
-    paddingBottom: 40,
+    height: '80%',
+    padding: 20,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 20,
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: '700',
     color: '#1F2937',
   },
-  paymentLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 12,
-    marginTop: 8,
-  },
-  paymentOptionCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 24,
-  },
-  walletIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#FFFBEB',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  walletTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#1F2937',
-  },
-  walletSub: {
-    fontSize: 12,
-    color: '#6B7280',
-  },
-  walletBalance: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#1F2937',
-  },
-  otherOptionsRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 32,
-  },
-  otherOptionBtn: {
+  modalScroll: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 12,
-    padding: 12,
-  },
-  otherOptionText: {
-    marginLeft: 8,
-    fontSize: 14,
-    color: '#374151',
-    fontWeight: '500',
-  },
-  confirmPayBtn: {
-    backgroundColor: '#E85D40',
-    paddingVertical: 16,
-    borderRadius: 16,
-    alignItems: 'center',
-  },
-  confirmPayText: {
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: '700',
   },
 });
-

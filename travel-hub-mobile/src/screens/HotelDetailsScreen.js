@@ -657,7 +657,11 @@ export const HotelDetailsScreen = ({ navigation }) => {
           onPress={() => {
             navigation.navigate('RoomList', {
               hotelId: hotel.hotelId,
-              rates: hotelDetails?.rates || []
+              rates: hotelDetails?.rates || [],
+              reviewsSummary: {
+                total: reviews?.total || hotel.reviewCount || 0,
+                rating: hotel.rating || 0
+              }
             });
           }}
         >

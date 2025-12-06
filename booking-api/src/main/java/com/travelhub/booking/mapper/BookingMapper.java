@@ -7,6 +7,7 @@ import com.travelhub.connectors.nuitee.dto.request.HotelRatesRequest;
 import com.travelhub.connectors.nuitee.dto.response.*;
 import org.springframework.stereotype.Component;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -564,6 +565,34 @@ public class BookingMapper {
         dto.setPaymentTypes(data.getPaymentTypes());
         dto.setCheckin(data.getCheckin());
         dto.setCheckout(data.getCheckout());
+
+        // Calculate total included and excluded taxes
+        BigDecimal totalIncludedTaxes = BigDecimal.ZERO;
+        BigDecimal totalExcludedTaxes = BigDecimal.ZERO;
+
+        if (data.getRoomTypes() != null) {
+            for (RoomType roomType : data.getRoomTypes()) {
+                if (roomType.getRates() != null) {
+                    for (Rate rate : roomType.getRates()) {
+                        if (rate.getRetailRate() != null && rate.getRetailRate().getTaxesAndFees() != null) {
+                            for (TaxAndFee taxAndFee : rate.getRetailRate().getTaxesAndFees()) {
+                                if (taxAndFee.getAmount() != null) {
+                                    if (taxAndFee.isIncluded()) {
+                                        totalIncludedTaxes = totalIncludedTaxes.add(taxAndFee.getAmount());
+                                    } else {
+                                        totalExcludedTaxes = totalExcludedTaxes.add(taxAndFee.getAmount());
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        dto.setTotalIncludedTaxes(totalIncludedTaxes);
+        dto.setTotalExcludedTaxes(totalExcludedTaxes);
+
         return dto;
     }
 }
