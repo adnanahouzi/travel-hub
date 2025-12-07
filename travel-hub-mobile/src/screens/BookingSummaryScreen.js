@@ -231,7 +231,7 @@ export const BookingSummaryScreen = ({ navigation, route }) => {
           // Structure: response.data.roomTypes[0].rates[0]
           const roomType = response.data?.roomTypes?.[0];
           const rate = roomType?.rates?.[0];
-          console.log('Debug Rate:', JSON.stringify(rate, null, 2));
+
 
           if (!rate) return null;
 

@@ -85,7 +85,6 @@ export const RoomListScreen = ({ navigation, route }) => {
       // Call batch prebook API
       const batchResponse = await ApiService.prebook(requests);
 
-      console.log('Batch prebook successful, total:', batchResponse.totalAmount);
 
       // Navigate to summary with all selected rooms and the batch response
       navigation.navigate('BookingSummary', {

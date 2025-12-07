@@ -2,6 +2,7 @@ package com.travelhub.booking.controller;
 
 import com.travelhub.booking.dto.request.PrebookRequestDto;
 import com.travelhub.booking.dto.response.BatchPrebookResponseDto;
+import com.travelhub.booking.dto.response.BookResponseDto;
 import com.travelhub.booking.service.BookingService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -73,10 +74,10 @@ public class BookingController {
                         @ApiResponse(responseCode = "400", description = "Invalid request parameters"),
                         @ApiResponse(responseCode = "500", description = "Internal server error")
         })
-        public ResponseEntity<Booking> submitBooking(
+        public ResponseEntity<BookResponseDto> submitBooking(
                         @Parameter(description = "Booking submission request", required = true) @Valid @RequestBody BookingInitiationRequestDto request) {
                 logger.info("Received booking submission request");
-                Booking booking = bookingService.submitBooking(request);
+                BookResponseDto booking = bookingService.submitBooking(request);
                 return ResponseEntity.ok(booking);
         }
 

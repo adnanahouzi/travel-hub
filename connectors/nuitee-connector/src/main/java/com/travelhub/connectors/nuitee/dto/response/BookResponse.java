@@ -45,7 +45,11 @@ public class BookResponse {
         private String checkout;
         private String hotelId;
         private String hotelName;
+        
+        @JsonProperty("bookedRooms")
         private List<RoomBooked> rooms;
+        
+        @JsonProperty("holder")
         private GuestContact guest;
 
         public String getBookingId() {
@@ -146,20 +150,36 @@ public class BookResponse {
     }
 
     public static class RoomBooked {
-        private String roomId;
         private String roomName;
+        
+        @JsonProperty("boardName")
         private String boardName;
+        
+        @JsonProperty("mappedRoomId")
+        private Long mappedRoomId;
+        
+        // Nested structure for roomType
+        private RoomType roomType;
 
         public String getRoomId() {
-            return roomId;
+            // Get roomId from roomType.roomTypeId
+            return roomType != null ? roomType.getRoomTypeId() : null;
         }
 
         public void setRoomId(String roomId) {
-            this.roomId = roomId;
+            // If roomType doesn't exist, create it
+            if (roomType == null) {
+                roomType = new RoomType();
+            }
+            roomType.setRoomTypeId(roomId);
         }
 
         public String getRoomName() {
-            return roomName;
+            if (roomName != null) {
+                return roomName;
+            }
+            // Fallback to roomType.name if roomName is not directly available
+            return roomType != null ? roomType.getName() : null;
         }
 
         public void setRoomName(String roomName) {
@@ -172,6 +192,45 @@ public class BookResponse {
 
         public void setBoardName(String boardName) {
             this.boardName = boardName;
+        }
+        
+        public Long getMappedRoomId() {
+            return mappedRoomId;
+        }
+        
+        public void setMappedRoomId(Long mappedRoomId) {
+            this.mappedRoomId = mappedRoomId;
+        }
+        
+        public RoomType getRoomType() {
+            return roomType;
+        }
+        
+        public void setRoomType(RoomType roomType) {
+            this.roomType = roomType;
+        }
+        
+        public static class RoomType {
+            @JsonProperty("roomTypeId")
+            private String roomTypeId;
+            
+            private String name;
+            
+            public String getRoomTypeId() {
+                return roomTypeId;
+            }
+            
+            public void setRoomTypeId(String roomTypeId) {
+                this.roomTypeId = roomTypeId;
+            }
+            
+            public String getName() {
+                return name;
+            }
+            
+            public void setName(String name) {
+                this.name = name;
+            }
         }
     }
 

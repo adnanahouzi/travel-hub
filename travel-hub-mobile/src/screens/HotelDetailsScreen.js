@@ -148,7 +148,6 @@ export const HotelDetailsScreen = ({ navigation }) => {
         offset: 0,
         getSentiment: true,
       });
-      console.log('Reviews API Response:', JSON.stringify(reviewsData, null, 2));
       setReviews(reviewsData);
       setTotalReviews(reviewsData.total || 0);
     } catch (error) {
@@ -218,8 +217,6 @@ export const HotelDetailsScreen = ({ navigation }) => {
   const distanceText = useMemo(() => {
     const location = searchParams.searchLocation || localSearchLocation;
 
-    console.log('Debug Distance - Location:', JSON.stringify(location));
-    console.log('Debug Distance - Hotel Location:', JSON.stringify(hotel?.location));
 
     if (!location || !hotel?.location) {
       return null;
@@ -232,7 +229,7 @@ export const HotelDetailsScreen = ({ navigation }) => {
         parseFloat(hotel.location.latitude),
         parseFloat(hotel.location.longitude)
       );
-      console.log('Debug Distance - Result:', distance);
+
       return formatDistance(distance);
     } catch (error) {
       console.error('Error calculating distance:', error);
@@ -250,11 +247,9 @@ export const HotelDetailsScreen = ({ navigation }) => {
 
   useEffect(() => {
     if (selectedHotel) {
-      console.log('Debug - Selected Hotel:', JSON.stringify(selectedHotel, null, 2));
-    }
+     }
     if (hotelDetails) {
-      console.log('Debug - Hotel Details:', JSON.stringify(hotelDetails, null, 2));
-    }
+     }
   }, [selectedHotel, hotelDetails]);
 
   // Collect all available images

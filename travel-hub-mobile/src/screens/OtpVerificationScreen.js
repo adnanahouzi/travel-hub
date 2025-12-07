@@ -48,10 +48,13 @@ export const OtpVerificationScreen = ({ route, navigation }) => {
             // Call submit booking endpoint
             const response = await ApiService.submitBooking(bookingData);
 
+
+            console.log('Booking ID:', response.data?.bookingId);
+
             // Navigate to Success Screen
             navigation.navigate('BookingSuccess', {
                 totalAmount: totalAmount,
-                bookingId: response.bookingId // Assuming response contains bookingId
+                bookingId: response.data?.bookingId
             });
         } catch (error) {
             console.error('OTP Verification error:', error);

@@ -17,7 +17,10 @@ public class BookingListResponse {
     }
 
     public static class BookingData {
+        @JsonProperty("bookingId")
         private String bookingId;
+        
+        @JsonProperty("clientReference")
         private String clientReference;
         private String status;
         private String checkin;

@@ -3,6 +3,7 @@ package com.travelhub.booking.service;
 import com.travelhub.booking.dto.request.BookingInitiationRequestDto;
 import com.travelhub.booking.dto.request.PrebookRequestDto;
 import com.travelhub.booking.dto.response.BatchPrebookResponseDto;
+import com.travelhub.booking.dto.response.BookResponseDto;
 import com.travelhub.booking.model.Booking;
 
 import java.util.List;
@@ -19,7 +20,7 @@ public interface BookingService {
 
     Booking initiateBooking(BookingInitiationRequestDto request);
 
-    Booking submitBooking(BookingInitiationRequestDto request);
+    BookResponseDto submitBooking(BookingInitiationRequestDto request);
 
     com.travelhub.booking.dto.response.BookResponseDto getBooking(String bookingId);
 

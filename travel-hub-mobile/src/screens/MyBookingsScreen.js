@@ -9,7 +9,8 @@ import {
     ActivityIndicator,
     SafeAreaView,
     Dimensions,
-    ImageBackground
+    ImageBackground,
+    Alert
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { ApiService } from '../services/api.service';
@@ -28,12 +29,11 @@ export const MyBookingsScreen = ({ navigation }) => {
     const fetchBookings = async () => {
         try {
             const response = await ApiService.listBookings();
-            console.log('Full response:', response);
-            console.log('response.data:', response.data);
+
 
             // Data is directly in response.data, not response.data.data
             if (response.data && Array.isArray(response.data)) {
-                console.log('Setting bookings:', response.data);
+
                 setBookings(response.data);
             } else {
                 console.log('No data found or not an array');
@@ -48,10 +48,10 @@ export const MyBookingsScreen = ({ navigation }) => {
 
     const getStatusColor = (status) => {
         switch (status) {
-            case 'CONFIRMED': return '#D97706'; // Gold/Yellow for En cours
+            case 'CONFIRMED': return '#10B981'; // Green
             case 'CANCELLED': return '#EF4444'; // Red
-            case 'COMPLETED': return '#10B981'; // Green/Teal
-            default: return '#6B7280'; // Grey
+            case 'COMPLETED': return '#10B981'; // Green
+            default: return '#F59E0B'; // Orange/Yellow
         }
     };
 
@@ -59,7 +59,7 @@ export const MyBookingsScreen = ({ navigation }) => {
         switch (status) {
             case 'CONFIRMED': return 'En cours';
             case 'CANCELLED': return 'Annulé';
-            case 'CANCELLED_WITH_CHARGES': return 'Annulé avec frais';
+            case 'CANCELLED_WITH_CHARGES': return 'Annulé avec des frais        ';
             case 'COMPLETED': return 'Complété';
             default: return status;
         }
@@ -75,9 +75,7 @@ export const MyBookingsScreen = ({ navigation }) => {
         const formatDate = (dateStr) => {
             if (!dateStr) return '';
             const [year, month, day] = dateStr.split('-');
-            const months = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
-            const monthIndex = parseInt(month, 10) - 1;
-            return `${day} ${months[monthIndex] || month}`;
+            return `${day}-${month}`;
         };
 
         const formattedCheckin = formatDate(item.checkin);
@@ -86,72 +84,69 @@ export const MyBookingsScreen = ({ navigation }) => {
         return (
             <TouchableOpacity
                 style={styles.bookingCard}
-                onPress={() => navigation.navigate('BookingDetails', { bookingId: item.bookingId })}
-                activeOpacity={0.9}
+                onPress={() => {
+                    if (!item.bookingId) {
+                        console.error('Booking ID is missing for booking:', item);
+                        Alert.alert('Erreur', 'ID de réservation manquant');
+                        return;
+                    }
+                    navigation.navigate('BookingDetails', { bookingId: item.bookingId });
+                }}
+                activeOpacity={0.7}
             >
                 {/* Hotel Info Section */}
                 <View style={styles.bookingHeader}>
                     <Image source={{ uri: hotelImage }} style={styles.hotelImageSmall} />
                     <View style={styles.bookingMainInfo}>
-                        <View style={styles.topRow}>
-                            <View style={styles.nameAndStatus}>
-                                <Text style={styles.hotelNameText} numberOfLines={1}>{item.hotel?.name || 'Hotel Name'}</Text>
-                                <Text style={[styles.statusText, { color: statusColor }]}>{statusLabel}</Text>
-                            </View>
-                            <TouchableOpacity style={styles.menuButton} onPress={(e) => { e.stopPropagation(); }}>
-                                <Ionicons name="ellipsis-vertical" size={20} color="#E85D40" />
-                            </TouchableOpacity>
+                        <View style={styles.nameStatusRow}>
+                            <Text style={styles.hotelNameText} numberOfLines={1}>{item.hotel?.name || 'Hotel Name'}</Text>
+                            <Text style={[styles.statusBadge, { color: statusColor }]}>{statusLabel}</Text>
                         </View>
-
-                        <View style={styles.detailsRow}>
-                            <View style={styles.dateContainer}>
-                                <Ionicons name="calendar-outline" size={14} color="#6B7280" />
-                                <Text style={styles.dateText}>{formattedCheckin} - {formattedCheckout}</Text>
-                            </View>
-                            <Text style={styles.priceText}>{item.price} {item.currency}</Text>
+                        <View style={styles.dateRow}>
+                            <Ionicons name="calendar-outline" size={16} color="#6B7280" />
+                            <Text style={styles.dateRangeText}>{formattedCheckin} - {formattedCheckout}</Text>
                         </View>
+                        <Text style={styles.priceAmount}>{item.price} {item.currency}</Text>
                     </View>
+                    <TouchableOpacity style={styles.menuButton} onPress={(e) => { e.stopPropagation(); }}>
+                        <Ionicons name="ellipsis-vertical" size={20} color="#E85D40" />
+                    </TouchableOpacity>
                 </View>
 
                 {/* Divider */}
                 <View style={styles.cardDivider} />
 
-                {/* Action Buttons */}
-                {/* Download Invoice Button - Always visible or based on status */}
-                <TouchableOpacity
-                    style={styles.cardActionRow}
-                    onPress={(e) => {
-                        e.stopPropagation();
-                        // TODO: Implement download invoice
-                    }}
-                >
-                    <View style={[styles.actionIcon, { backgroundColor: '#E0E7FF' }]}>
-                        <MaterialCommunityIcons name="file-document-outline" size={20} color="#4F46E5" />
-                    </View>
-                    <Text style={styles.actionLabel}>Telecharger la facture</Text>
-                    <Ionicons name="chevron-forward" size={20} color="#E85D40" />
-                </TouchableOpacity>
-
-                {/* Re-book Button - Only for Completed or Cancelled */}
-                {(item.status === 'COMPLETED' || item.status === 'CANCELLED' || item.status === 'CANCELLED_WITH_CHARGES') && (
-                    <>
-                        <View style={styles.cardDivider} />
-                        <TouchableOpacity
-                            style={styles.cardActionRow}
-                            onPress={(e) => {
-                                e.stopPropagation();
-                                if (item.hotel?.hotelId) {
-                                    navigation.navigate('HotelDetails', { hotelId: item.hotel.hotelId });
-                                }
-                            }}
-                        >
-                            <View style={[styles.actionIcon, { backgroundColor: '#F3F4F6' }]}>
-                                <Ionicons name="refresh" size={20} color="#6B7280" />
-                            </View>
-                            <Text style={styles.actionLabel}>Réservez à nouveau</Text>
-                            <Ionicons name="chevron-forward" size={20} color="#E85D40" />
-                        </TouchableOpacity>
-                    </>
+                {/* Action Button */}
+                {item.status === 'CONFIRMED' || item.status === 'COMPLETED' ? (
+                    <TouchableOpacity
+                        style={styles.cardActionRow}
+                        onPress={(e) => {
+                            e.stopPropagation();
+                            // TODO: Implement download invoice
+                        }}
+                    >
+                        <View style={styles.actionIcon}>
+                            <Ionicons name="receipt-outline" size={20} color="#6B7280" />
+                        </View>
+                        <Text style={styles.actionLabel}>Telecharger la facture</Text>
+                        <Ionicons name="chevron-forward" size={20} color="#E85D40" />
+                    </TouchableOpacity>
+                ) : (
+                    <TouchableOpacity
+                        style={styles.cardActionRow}
+                        onPress={(e) => {
+                            e.stopPropagation();
+                            if (item.hotel?.hotelId) {
+                                navigation.navigate('HotelDetails', { hotelId: item.hotel.hotelId });
+                            }
+                        }}
+                    >
+                        <View style={styles.actionIcon}>
+                            <Ionicons name="refresh" size={20} color="#6B7280" />
+                        </View>
+                        <Text style={styles.actionLabel}>Réservez à nouveau</Text>
+                        <Ionicons name="chevron-forward" size={20} color="#E85D40" />
+                    </TouchableOpacity>
                 )}
             </TouchableOpacity>
         );
@@ -169,13 +164,6 @@ export const MyBookingsScreen = ({ navigation }) => {
                     <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
                         <Ionicons name="arrow-back" size={24} color="#FFF" />
                     </TouchableOpacity>
-
-                    {/* Points Badge */}
-                    <View style={styles.pointsBadge}>
-                        <Ionicons name="star" size={16} color="#FFA500" />
-                        <Text style={styles.pointsText}>600</Text>
-                    </View>
-
                     <Text style={styles.headerTitle}>Gérez{'\n'}vos réservations</Text>
                 </View>
             </ImageBackground>
@@ -246,24 +234,6 @@ const styles = StyleSheet.create({
         zIndex: 10,
         padding: 8,
     },
-    pointsBadge: {
-        position: 'absolute',
-        top: 16,
-        right: 16,
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: 'rgba(255, 255, 255, 0.9)',
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 20,
-        zIndex: 10,
-    },
-    pointsText: {
-        fontSize: 15,
-        fontWeight: '700',
-        color: '#1F2937',
-        marginLeft: 4,
-    },
     headerTitle: {
         fontSize: 28,
         fontWeight: '700',
@@ -283,12 +253,12 @@ const styles = StyleSheet.create({
         backgroundColor: 'transparent',
     },
     tab: {
-        paddingVertical: 8,
-        paddingHorizontal: 16,
+        paddingVertical: 12,
+        paddingHorizontal: 24,
         backgroundColor: 'rgba(255,255,255,0.4)',
-        borderRadius: 20,
-        marginHorizontal: 4,
-        minWidth: 80,
+        borderRadius: 25,
+        marginHorizontal: 6,
+        minWidth: 100,
         alignItems: 'center',
     },
     activeTab: {
@@ -297,7 +267,7 @@ const styles = StyleSheet.create({
     tabText: {
         color: '#FFF',
         fontWeight: '600',
-        fontSize: 13,
+        fontSize: 14,
     },
     activeTabText: {
         color: '#FFF',
@@ -313,16 +283,14 @@ const styles = StyleSheet.create({
     // Booking Card Styles
     bookingCard: {
         backgroundColor: '#FFF',
-        borderRadius: 20,
+        borderRadius: 12,
         marginBottom: 16,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
-        elevation: 3,
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 3,
+        elevation: 2,
         overflow: 'hidden',
-        borderWidth: 1,
-        borderColor: '#F3F4F6',
     },
     bookingHeader: {
         flexDirection: 'row',
@@ -330,63 +298,50 @@ const styles = StyleSheet.create({
         alignItems: 'flex-start',
     },
     hotelImageSmall: {
-        width: 60,
-        height: 60,
-        borderRadius: 12,
+        width: 50,
+        height: 50,
+        borderRadius: 8,
         backgroundColor: '#E5E7EB',
     },
     bookingMainInfo: {
         flex: 1,
         marginLeft: 12,
-        justifyContent: 'center',
     },
-    topRow: {
+    nameStatusRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'flex-start',
-        marginBottom: 4,
-    },
-    nameAndStatus: {
-        flex: 1,
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        alignItems: 'center',
-        marginRight: 8,
+        marginBottom: 6,
     },
     hotelNameText: {
+        flex: 1,
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#1F2937',
+        marginRight: 8,
+    },
+    statusBadge: {
+        fontSize: 12,
+        fontWeight: '600',
+    },
+    dateRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 4,
+    },
+    dateRangeText: {
+        fontSize: 13,
+        color: '#6B7280',
+        marginLeft: 6,
+    },
+    priceAmount: {
         fontSize: 16,
         fontWeight: '700',
         color: '#1F2937',
-        marginRight: 8,
-    },
-    statusText: {
-        fontSize: 13,
-        fontWeight: '600',
-    },
-    detailsRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        marginTop: 4,
-    },
-    dateContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    dateText: {
-        fontSize: 13,
-        color: '#6B7280',
-        marginLeft: 4,
-        fontWeight: '500',
-    },
-    priceText: {
-        fontSize: 15,
-        fontWeight: '700',
-        color: '#1F2937',
+        marginTop: 2,
     },
     menuButton: {
         padding: 4,
-        marginTop: -4,
     },
     cardDivider: {
         height: 1,
@@ -397,12 +352,12 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         padding: 16,
-        paddingVertical: 14,
     },
     actionIcon: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: '#F3F4F6',
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: 12,
@@ -410,7 +365,7 @@ const styles = StyleSheet.create({
     actionLabel: {
         flex: 1,
         fontSize: 15,
-        color: '#374151',
+        color: '#1F2937',
         fontWeight: '500',
     },
 });

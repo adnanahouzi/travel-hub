@@ -2,12 +2,15 @@ package com.travelhub.booking.service.impl;
 
 import com.travelhub.booking.dto.request.PrebookRequestDto;
 import com.travelhub.booking.dto.response.BatchPrebookResponseDto;
+import com.travelhub.booking.dto.response.BookResponseDto;
 import com.travelhub.booking.dto.response.BookingListResponseDto;
 import com.travelhub.booking.dto.response.PrebookResponseDto;
 import com.travelhub.booking.mapper.BookingMapper;
 import com.travelhub.booking.service.BookingService;
 import com.travelhub.connectors.nuitee.NuiteeApiClient;
+import com.travelhub.connectors.nuitee.dto.request.BookRequest;
 import com.travelhub.connectors.nuitee.dto.request.PrebookRequest;
+import com.travelhub.connectors.nuitee.dto.response.BookResponse;
 import com.travelhub.connectors.nuitee.dto.response.BookingListResponse;
 import com.travelhub.connectors.nuitee.dto.response.PrebookResponse;
 import org.slf4j.Logger;
@@ -150,7 +153,7 @@ public class BookingServiceImpl implements BookingService {
     }
 
     @Override
-    public Booking submitBooking(BookingInitiationRequestDto request) {
+    public BookResponseDto submitBooking(BookingInitiationRequestDto request) {
         logger.info("Submitting booking for holder: {} {}",
                 request.getHolder().getFirstName(), request.getHolder().getLastName());
 
@@ -167,7 +170,6 @@ public class BookingServiceImpl implements BookingService {
         }
 
         // Create and SAVE booking entity
-        // Create and SAVE booking entity
         Booking booking = new Booking();
         booking.setHolderFirstName(request.getHolder().getFirstName());
         booking.setHolderLastName(request.getHolder().getLastName());
@@ -175,52 +177,97 @@ public class BookingServiceImpl implements BookingService {
         booking.setHolderPhone(request.getHolder().getPhone());
         booking.setSimulationId(simulation.getId());
         booking.setBankingAccount(request.getBankingAccount());
-        booking.setStatus("PENDING"); // Initial status
+        booking.setStatus("PENDING");
 
         Booking savedBooking = bookingRepository.save(booking);
-        logger.info("Booking saved with PENDING status - ID: {}, simulation: {}",
-                savedBooking.getId(), simulation.getId());
+        logger.info("Booking entity created with ID: {}", savedBooking.getId());
 
+        // Now call the connector to confirm the booking with the provider
         try {
-            // Get the first connector prebook ID (assuming single room/hotel for now)
-            if (simulation.getConnectorPrebookIds() == null || simulation.getConnectorPrebookIds().isEmpty()) {
-                throw new RuntimeException("No connector prebook ID found for simulation: " + simulation.getId());
+            if (simulation.getConnectorPrebookIds() == null
+                    || simulation.getConnectorPrebookIds().isEmpty()) {
+                throw new RuntimeException("Simulation does not have prebook IDs");
             }
             String prebookId = simulation.getConnectorPrebookIds().get(0);
 
             // Map to connector request
-            com.travelhub.connectors.nuitee.dto.request.BookRequest bookRequest = bookingMapper.toBookRequest(request,
-                    prebookId);
+            BookRequest bookRequest = bookingMapper.toBookRequest(request, prebookId);
 
             // Call connector
-            com.travelhub.connectors.nuitee.dto.response.BookResponse connectorResponse = nuiteeApiClient
-                    .book(bookRequest);
+            BookResponse connectorResponse = nuiteeApiClient.book(bookRequest);
 
             // Update booking with success details
-            if (connectorResponse != null && connectorResponse.getData() != null) {
-                savedBooking.setBookingId(connectorResponse.getData().getBookingId());
-                // savedBooking.setConfirmationCode(connectorResponse.getData().getConfirmationCode());
-                // // If available
+            if (connectorResponse != null && connectorResponse.getData() != null
+                    && connectorResponse.getData().getStatus().equals("CONFIRMED")) {
+                BookResponse.BookData data = connectorResponse.getData();
+
+                // Set basic booking IDs and status
+                savedBooking.setBookingId(data.getBookingId());
                 savedBooking.setStatus("CONFIRMED");
+                savedBooking.setConfirmationCode(data.getStatus());
+
+                // Set complete booking data from connector response
+                savedBooking.setHotelConfirmationCode(data.getHotelConfirmationCode());
+                savedBooking.setReference(data.getReference());
+                savedBooking.setPrice(data.getPrice());
+                savedBooking.setCurrency(data.getCurrency());
+                savedBooking.setCheckin(data.getCheckin());
+                savedBooking.setCheckout(data.getCheckout());
+                savedBooking.setHotelId(data.getHotelId());
+                savedBooking.setHotelName(data.getHotelName());
+
+                // Set top-level metadata
+                savedBooking.setGuestLevel(connectorResponse.getGuestLevel());
+                savedBooking.setSandbox(connectorResponse.getSandbox());
+
+                // Create and save room entities
+                if (data.getRooms() != null && !data.getRooms().isEmpty()) {
+                    for (BookResponse.RoomBooked roomData : data.getRooms()) {
+                        com.travelhub.booking.model.BookingRoom room = new com.travelhub.booking.model.BookingRoom();
+                        room.setBooking(savedBooking);
+                        room.setRoomId(roomData.getRoomId());
+                        room.setRoomName(roomData.getRoomName());
+                        room.setBoardName(roomData.getBoardName());
+                        room.setMappedRoomId(roomData.getMappedRoomId());
+                        savedBooking.getRooms().add(room);
+                    }
+                }
+
+                // Create and save guest entity
+                if (data.getGuest() != null) {
+                    com.travelhub.booking.model.BookingGuest guest = new com.travelhub.booking.model.BookingGuest();
+                    guest.setBooking(savedBooking);
+                    guest.setFirstName(data.getGuest().getFirstName());
+                    guest.setLastName(data.getGuest().getLastName());
+                    guest.setEmail(data.getGuest().getEmail());
+                    guest.setPhone(data.getGuest().getPhone());
+                    savedBooking.setGuest(guest);
+                }
+
                 logger.info("Booking confirmed with provider - BookingID: {}", savedBooking.getBookingId());
+
+                // Save the complete booking with relationships
+                bookingRepository.save(savedBooking);
+
+                // Return the connector response as DTO
+                return bookingMapper.toBookResponseDto(connectorResponse);
             } else {
                 logger.warn("Received empty response from connector for booking: {}", savedBooking.getId());
-                // Decide whether to fail or keep pending. For now, let's keep it pending or
-                // mark as failed.
-                // savedBooking.setStatus("FAILED");
+                savedBooking.setStatus("FAILED");
+                bookingRepository.save(savedBooking);
+                throw new RuntimeException("Booking confirmation failed");
             }
 
         } catch (Exception e) {
             logger.error("Error confirming booking with provider: {}", e.getMessage(), e);
             savedBooking.setStatus("FAILED");
-            // You might want to rethrow or handle gracefully depending on requirements
+            bookingRepository.save(savedBooking);
+            throw new RuntimeException("Error confirming booking: " + e.getMessage(), e);
         }
-
-        return bookingRepository.save(savedBooking);
     }
 
     @Override
-    public com.travelhub.booking.dto.response.BookResponseDto getBooking(String bookingId) {
+    public BookResponseDto getBooking(String bookingId) {
         logger.info("Retrieving booking details for bookingId: {}", bookingId);
         com.travelhub.connectors.nuitee.dto.response.BookResponse connectorResponse = nuiteeApiClient
                 .getBooking(bookingId);
@@ -229,7 +276,7 @@ public class BookingServiceImpl implements BookingService {
 
     @Override
     public BookingListResponseDto listBookings(String guestId,
-                                               String clientReference) {
+            String clientReference) {
         logger.info("Listing bookings - guestId: {}, clientReference: {}", guestId, clientReference);
         BookingListResponse connectorResponse = nuiteeApiClient
                 .listBookings(guestId, clientReference);

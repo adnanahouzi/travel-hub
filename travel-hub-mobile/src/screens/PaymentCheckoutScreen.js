@@ -17,7 +17,6 @@ import { ApiService } from '../services/api.service';
 
 export const PaymentCheckoutScreen = ({ route, navigation }) => {
     const { prebookData, travelerInfo } = route.params;
-    console.log('Debug - Prebook Data:', JSON.stringify(prebookData, null, 2));
     const { searchParams, selectedHotel } = useBooking();
 
     const [selectedAccount, setSelectedAccount] = useState(null);
