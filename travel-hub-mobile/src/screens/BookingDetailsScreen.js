@@ -9,8 +9,11 @@ import {
     ActivityIndicator,
     SafeAreaView,
     Dimensions,
+    Platform,
+    Linking,
     Alert
 } from 'react-native';
+import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { ApiService } from '../services/api.service';
 
@@ -40,22 +43,8 @@ export const BookingDetailsScreen = ({ route, navigation }) => {
                 const hotelData = hotelResponse.data;
                 setHotelDetails(hotelData);
 
-                // 3. Find room details
-                if (bookingData.rooms && bookingData.rooms.length > 0) {
-                    const bookedRoomId = bookingData.rooms[0].roomId;
-                    // Try to find the room in hotel details (assuming structure)
-                    // Note: Hotel details might not have room list directly in the same format, 
-                    // but usually has room types. We'll try to match by ID or name if ID is missing.
-                    // For now, we'll use the booking's room info as primary and enrich if possible.
-                    // If hotelData has rooms/roomTypes, we'd search there.
-                    // Let's assume hotelData has a 'roomTypes' array.
-                    if (hotelData.roomTypes) {
-                        const foundRoom = hotelData.roomTypes.find(r => r.roomTypeId === bookedRoomId);
-                        if (foundRoom) {
-                            setRoomDetails(foundRoom);
-                        }
-                    }
-                }
+
+
             }
         } catch (error) {
             console.error('Error fetching details:', error);
@@ -87,10 +76,6 @@ export const BookingDetailsScreen = ({ route, navigation }) => {
         ? hotelDetails.hotelImages[0].url
         : 'https://via.placeholder.com/400x200';
 
-    // Use room image from details if available
-    const roomImage = roomDetails?.roomImages && roomDetails.roomImages.length > 0
-        ? roomDetails.roomImages[0].url
-        : (hotelDetails?.hotelImages && hotelDetails.hotelImages.length > 1 ? hotelDetails.hotelImages[1].url : 'https://via.placeholder.com/80');
 
 
     return (
@@ -129,7 +114,9 @@ export const BookingDetailsScreen = ({ route, navigation }) => {
                                 <Text style={styles.dateLabel}>Arrivé</Text>
                                 <Text style={styles.dateValue}>{booking.checkin}</Text>
                             </View>
-                            <Text style={styles.timeValue}>14h00 - 00h00</Text>
+                            <Text style={styles.timeValue}>
+                                {hotelDetails?.checkinCheckoutTimes?.checkin || '3:00 PM'}
+                            </Text>
                         </View>
                         <View style={styles.dateDivider} />
                         <View style={styles.dateItem}>
@@ -138,7 +125,9 @@ export const BookingDetailsScreen = ({ route, navigation }) => {
                                 <Text style={styles.dateLabel}>Départ</Text>
                                 <Text style={styles.dateValue}>{booking.checkout}</Text>
                             </View>
-                            <Text style={styles.timeValue}>14h00 - 00h00</Text>
+                            <Text style={styles.timeValue}>
+                                {hotelDetails?.checkinCheckoutTimes?.checkout || '12:00 PM'}
+                            </Text>
                         </View>
                     </View>
                 </View>
@@ -146,44 +135,49 @@ export const BookingDetailsScreen = ({ route, navigation }) => {
                 {/* Location */}
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Localisation</Text>
-                    <View style={styles.mapPreview}>
-                        {/* Use static map or placeholder with real coords if available */}
-                        <Image
-                            source={{ uri: 'https://via.placeholder.com/400x150' }}
-                            style={styles.mapImage}
-                        />
-                        {hotelDetails?.location && (
-                            <View style={styles.addressOverlay}>
-                                <Text style={styles.addressText}>{hotelDetails.location.address}</Text>
-                            </View>
-                        )}
+                    <View style={styles.mapContainer}>
+                        <MapView
+                            provider={PROVIDER_GOOGLE}
+                            style={styles.map}
+                            region={{
+                                latitude: parseFloat(hotelDetails?.location?.latitude) || 31.6295,
+                                longitude: parseFloat(hotelDetails?.location?.longitude) || -7.9811,
+                                latitudeDelta: 0.02,
+                                longitudeDelta: 0.02,
+                            }}
+                            scrollEnabled={true}
+                            zoomEnabled={true}
+                        >
+                            <Marker
+                                coordinate={{
+                                    latitude: parseFloat(hotelDetails?.location?.latitude) || 31.6295,
+                                    longitude: parseFloat(hotelDetails?.location?.longitude) || -7.9811,
+                                }}
+                            >
+                                <View style={styles.mapMarkerContainer}>
+                                    <Image
+                                        source={{ uri: hotelImage }}
+                                        style={styles.mapMarkerImage}
+                                    />
+                                </View>
+                            </Marker>
+                        </MapView>
+                        <TouchableOpacity
+                            style={styles.expandMapButton}
+                            onPress={() => {
+                                if (hotelDetails?.location?.latitude && hotelDetails?.location?.longitude) {
+                                    const url = Platform.OS === 'ios'
+                                        ? `maps:0,0?q=${hotelDetails.location.latitude},${hotelDetails.location.longitude}`
+                                        : `geo:0,0?q=${hotelDetails.location.latitude},${hotelDetails.location.longitude}`;
+                                    Linking.openURL(url);
+                                }
+                            }}
+                        >
+                            <Ionicons name="expand-outline" size={20} color="#1F2937" />
+                        </TouchableOpacity>
                     </View>
                 </View>
 
-                {/* Rooms */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Chambres</Text>
-                    <View style={styles.roomCard}>
-                        <Image
-                            source={{ uri: roomImage }}
-                            style={styles.roomImage}
-                        />
-                        <View style={styles.roomInfo}>
-                            <Text style={styles.roomId}>ID : {booking.bookingId}</Text>
-                            <Text style={styles.roomName}>{room ? room.roomName : 'Chambre Standard'}</Text>
-                            <View style={styles.roomDetailsRow}>
-                                <Ionicons name="bed-outline" size={16} color="#6B7280" />
-                                <Text style={styles.roomDetailText}>2 personnes</Text>
-                                <MaterialCommunityIcons name="floor-plan" size={16} color="#6B7280" style={{ marginLeft: 8 }} />
-                                <Text style={styles.roomDetailText}>30 m²</Text>
-                            </View>
-                            <View style={styles.cancellationRow}>
-                                <Ionicons name="information-circle-outline" size={16} color="#6B7280" />
-                                <Text style={styles.cancellationText}>Annulation gratuite avant le 01 Décembre</Text>
-                            </View>
-                        </View>
-                    </View>
-                </View>
 
                 {/* Payments */}
                 <View style={styles.section}>
@@ -195,7 +189,15 @@ export const BookingDetailsScreen = ({ route, navigation }) => {
                             </View>
                             <View style={styles.paymentInfo}>
                                 <Text style={styles.paymentLabel}>Points gagnés</Text>
-                                <Text style={styles.paymentSubtext}>Aujourd'hui, 11h45</Text>
+                                <Text style={styles.paymentSubtext}>
+                                    {booking.createdAt ? (() => {
+                                        const date = new Date(booking.createdAt);
+                                        const today = new Date();
+                                        const isToday = date.toDateString() === today.toDateString();
+                                        const timeStr = date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+                                        return isToday ? `Aujourd'hui, ${timeStr}` : date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' }) + `, ${timeStr}`;
+                                    })() : 'Date non disponible'}
+                                </Text>
                             </View>
                             <View style={styles.pointsBadge}>
                                 <Ionicons name="flash" size={16} color="#FFF" />
@@ -209,27 +211,47 @@ export const BookingDetailsScreen = ({ route, navigation }) => {
                             </View>
                             <View style={styles.paymentInfo}>
                                 <Text style={styles.paymentLabel}>Montant payé</Text>
-                                <Text style={styles.paymentSubtext}>Aujourd'hui, 11h45</Text>
+                                <Text style={styles.paymentSubtext}>
+                                    {booking.createdAt ? (() => {
+                                        const date = new Date(booking.createdAt);
+                                        const today = new Date();
+                                        const isToday = date.toDateString() === today.toDateString();
+                                        const timeStr = date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+                                        return isToday ? `Aujourd'hui, ${timeStr}` : date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' }) + `, ${timeStr}`;
+                                    })() : 'Date non disponible'}
+                                </Text>
                             </View>
                             <Text style={styles.amountValue}>{booking.price} {booking.currency}</Text>
                         </View>
                     </View>
                 </View>
 
-                {/* Contact Property */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Contacter la propriété</Text>
-                    <TouchableOpacity style={styles.contactCard}>
-                        <View style={styles.contactIconContainer}>
-                            <Ionicons name="call-outline" size={24} color="#6B7280" />
-                        </View>
-                        <View style={styles.contactInfo}>
-                            <Text style={styles.contactLabel}>Appeler</Text>
-                            <Text style={styles.contactSubtext}>+212 6 00 000000</Text>
-                        </View>
-                        <Ionicons name="call-outline" size={24} color="#E85D40" />
-                    </TouchableOpacity>
-                </View>
+                {/* Contact Property - Only show if phone exists */}
+                {hotelDetails?.phone && (
+                    <View style={styles.section}>
+                        <Text style={styles.sectionTitle}>Contacter la propriété</Text>
+                        <TouchableOpacity
+                            style={styles.contactCard}
+                            onPress={() => {
+                                const phoneNumber = hotelDetails.phone;
+                                // Remove spaces and special characters except +
+                                const cleanedPhone = phoneNumber.replace(/[^\d+]/g, '');
+                                Linking.openURL(`tel:${cleanedPhone}`);
+                            }}
+                        >
+                            <View style={styles.contactIconContainer}>
+                                <Ionicons name="call-outline" size={24} color="#6B7280" />
+                            </View>
+                            <View style={styles.contactInfo}>
+                                <Text style={styles.contactLabel}>Appeler</Text>
+                                <Text style={styles.contactSubtext}>
+                                    {hotelDetails.phone}
+                                </Text>
+                            </View>
+                            <Ionicons name="call-outline" size={24} color="#E85D40" />
+                        </TouchableOpacity>
+                    </View>
+                )}
 
                 {/* Manage Reservation */}
                 <View style={styles.section}>
@@ -419,46 +441,49 @@ const styles = StyleSheet.create({
         backgroundColor: '#E5E7EB',
         marginHorizontal: 16,
     },
-    mapPreview: {
-        height: 150,
+    mapContainer: {
+        height: 200,
         borderRadius: 16,
         overflow: 'hidden',
         position: 'relative',
+        marginBottom: 16,
     },
-    mapImage: {
+    map: {
         width: '100%',
         height: '100%',
     },
-    mapMarker: {
+    mapMarkerContainer: {
+        width: 50,
+        height: 50,
+        borderRadius: 25,
+        overflow: 'hidden',
+        borderWidth: 3,
+        borderColor: '#FFF',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 4,
+        elevation: 5,
+    },
+    mapMarkerImage: {
+        width: '100%',
+        height: '100%',
+    },
+    expandMapButton: {
         position: 'absolute',
-        top: '50%',
-        left: '50%',
-        marginLeft: -20,
-        marginTop: -20,
+        bottom: 12,
+        right: 12,
+        backgroundColor: '#FFF',
         width: 40,
         height: 40,
         borderRadius: 20,
-        borderWidth: 2,
-        borderColor: '#FFF',
-        overflow: 'hidden',
-    },
-    markerImage: {
-        width: '100%',
-        height: '100%',
-    },
-    addressOverlay: {
-        position: 'absolute',
-        bottom: 10,
-        left: 10,
-        right: 10,
-        backgroundColor: 'rgba(0,0,0,0.6)',
-        padding: 8,
-        borderRadius: 8,
-    },
-    addressText: {
-        color: '#FFF',
-        fontSize: 12,
-        fontWeight: '600',
+        justifyContent: 'center',
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
+        elevation: 5,
     },
     roomCard: {
         backgroundColor: '#FFF',
@@ -466,12 +491,7 @@ const styles = StyleSheet.create({
         padding: 16,
         flexDirection: 'row',
     },
-    roomImage: {
-        width: 80,
-        height: 80,
-        borderRadius: 8,
-        marginRight: 16,
-    },
+
     roomInfo: {
         flex: 1,
     },
