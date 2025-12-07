@@ -1,6 +1,18 @@
 spring:
   application:
     name: travel-hub
+  datasource:
+    url: jdbc:h2:mem:travelhubdb
+    username: sa
+    password:
+    driverClassName: org.h2.Driver
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    defer-datasource-initialization: true
 
 springdoc:
   api-docs:
@@ -16,6 +28,6 @@ travelhub:
       api-key: sand_5e58b637-d99c-483d-b20c-935dbad04458
       public-key: 134b4eff-72e4-4ee6-905a-9d372303dd83
       connect-timeout: 5s
-      read-timeout: 10s
+      read-timeout: 30s
       max-total-connections: 200
       max-connections-per-route: 50

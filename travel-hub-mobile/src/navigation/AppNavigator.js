@@ -8,7 +8,10 @@ import {
   BookingScreen,
   RoomListScreen,
   BookingSummaryScreen,
-  PaymentCheckoutScreen
+  PaymentCheckoutScreen,
+  OtpVerificationScreen,
+  BookingSuccessScreen,
+  BookingDetailsScreen
 } from '../screens';
 
 const Stack = createStackNavigator();
@@ -30,6 +33,9 @@ export const AppNavigator = () => {
         <Stack.Screen name="BookingSummary" component={BookingSummaryScreen} />
         <Stack.Screen name="Booking" component={BookingScreen} />
         <Stack.Screen name="PaymentCheckout" component={PaymentCheckoutScreen} />
+        <Stack.Screen name="OtpVerification" component={OtpVerificationScreen} />
+        <Stack.Screen name="BookingSuccess" component={BookingSuccessScreen} />
+        <Stack.Screen name="BookingDetails" component={BookingDetailsScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

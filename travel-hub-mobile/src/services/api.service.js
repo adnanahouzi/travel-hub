@@ -82,6 +82,18 @@ export const ApiService = {
   book: async (bookingData) => {
     return apiClient.post(ENDPOINTS.BOOK, bookingData);
   },
+
+  initiateBooking: async (bookingData) => {
+    return apiClient.post(ENDPOINTS.INITIATE_BOOKING, bookingData);
+  },
+
+  submitBooking: async (bookingData) => {
+    return apiClient.post(ENDPOINTS.SUBMIT_BOOKING, bookingData);
+  },
+
+  getBooking: async (bookingId) => {
+    return apiClient.get(ENDPOINTS.GET_BOOKING(bookingId));
+  },
 };
 
 export default apiClient;

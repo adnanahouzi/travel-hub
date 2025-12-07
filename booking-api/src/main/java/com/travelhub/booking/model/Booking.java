@@ -33,6 +33,12 @@ public class Booking {
     @Column(nullable = false)
     private String status;
 
+    @Column(name = "booking_id")
+    private String bookingId;
+
+    @Column(name = "confirmation_code")
+    private String confirmationCode;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -114,6 +120,22 @@ public class Booking {
 
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    public String getBookingId() {
+        return bookingId;
+    }
+
+    public void setBookingId(String bookingId) {
+        this.bookingId = bookingId;
+    }
+
+    public String getConfirmationCode() {
+        return confirmationCode;
+    }
+
+    public void setConfirmationCode(String confirmationCode) {
+        this.confirmationCode = confirmationCode;
     }
 
     public LocalDateTime getCreatedAt() {

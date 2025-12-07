@@ -20,4 +20,6 @@ public interface BookingService {
     Booking initiateBooking(BookingInitiationRequestDto request);
 
     Booking submitBooking(BookingInitiationRequestDto request);
+
+    com.travelhub.booking.dto.response.BookResponseDto getBooking(String bookingId);
 }

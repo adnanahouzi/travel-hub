@@ -79,4 +79,10 @@ public class BookingController {
                 Booking booking = bookingService.submitBooking(request);
                 return ResponseEntity.ok(booking);
         }
+
+        @GetMapping("/{bookingId}")
+        public ResponseEntity<com.travelhub.booking.dto.response.BookResponseDto> getBooking(
+                        @PathVariable String bookingId) {
+                return ResponseEntity.ok(bookingService.getBooking(bookingId));
+        }
 }

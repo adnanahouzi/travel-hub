@@ -34,4 +34,6 @@ public interface NuiteeApiClient {
         PrebookResponse prebook(PrebookRequest request);
 
         BookResponse book(BookRequest request);
+
+        BookResponse getBooking(String bookingId);
 }

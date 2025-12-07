@@ -24,5 +24,8 @@ export const ENDPOINTS = {
   // Booking endpoints
   PREBOOK: '/booking/prebook',
   BOOK: '/booking/book',
+  INITIATE_BOOKING: '/booking/initiate',
+  SUBMIT_BOOKING: '/booking/submit',
+  GET_BOOKING: (bookingId) => `/booking/${bookingId}`,
 };
 

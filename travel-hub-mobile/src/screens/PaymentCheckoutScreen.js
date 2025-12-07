@@ -13,9 +13,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { format, differenceInDays } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useBooking } from '../context/BookingContext';
+import { ApiService } from '../services/api.service';
 
 export const PaymentCheckoutScreen = ({ route, navigation }) => {
     const { prebookData, travelerInfo } = route.params;
+    console.log('Debug - Prebook Data:', JSON.stringify(prebookData, null, 2));
     const { searchParams, selectedHotel } = useBooking();
 
     const [selectedAccount, setSelectedAccount] = useState(null);
@@ -25,7 +27,6 @@ export const PaymentCheckoutScreen = ({ route, navigation }) => {
     // Mock banking accounts - in real app, fetch from user profile
     const bankingAccounts = [
         { id: '1234567890123456', name: 'Compte Principal', balance: '25,000 DH' },
-        { id: '6543210987654321', name: 'Compte Épargne', balance: '50,000 DH' },
     ];
 
     // Calculate nights
@@ -41,9 +42,9 @@ export const PaymentCheckoutScreen = ({ route, navigation }) => {
     ) || 0;
 
     // Service fees (example: 2% of total)
-    const serviceFeePercent = 0.02;
-    const serviceFee = prebookData.totalAmount * serviceFeePercent;
-    const totalAmount = prebookData.totalAmount + serviceFee;
+    // const serviceFeePercent = 0.02;
+    // const serviceFee = prebookData.totalAmount * serviceFeePercent;
+    const totalAmount = prebookData.totalAmount;
 
     const handlePayment = async () => {
         if (!selectedAccount) {
@@ -59,33 +60,25 @@ export const PaymentCheckoutScreen = ({ route, navigation }) => {
         try {
             setLoading(true);
 
-            // Call submit booking endpoint
-            // const bookingData = {
-            //   simulationId: prebookData.simulationId,
-            //   holder: {
-            //     firstName: travelerInfo.firstName,
-            //     lastName: travelerInfo.lastName,
-            //     email: travelerInfo.email,
-            //     phone: travelerInfo.phone,
-            //   },
-            //   bankingAccount: selectedAccount,
-            // };
+            // Call initiate booking endpoint
+            const bookingData = {
+                simulationId: prebookData.simulationId,
+                holder: {
+                    firstName: travelerInfo.firstName,
+                    lastName: travelerInfo.lastName,
+                    email: travelerInfo.email,
+                    phone: travelerInfo.phone,
+                },
+                bankingAccount: selectedAccount,
+            };
 
-            // const response = await ApiService.submitBooking(bookingData);
+            await ApiService.initiateBooking(bookingData);
 
-            // Simulate API call
-            await new Promise(resolve => setTimeout(resolve, 2000));
-
-            Alert.alert(
-                'Succès',
-                'Votre réservation a été confirmée !',
-                [
-                    {
-                        text: 'OK',
-                        onPress: () => navigation.navigate('Search'),
-                    },
-                ]
-            );
+            // Navigate to OTP Verification
+            navigation.navigate('OtpVerification', {
+                bookingData,
+                totalAmount
+            });
         } catch (error) {
             console.error('Payment error:', error);
             Alert.alert('Erreur', 'Impossible de finaliser le paiement');
@@ -173,17 +166,12 @@ export const PaymentCheckoutScreen = ({ route, navigation }) => {
                             {nights} Nuitées - {totalGuests} Personnes
                         </Text>
                         <Text style={styles.invoiceRef}>
-                            Ref: {prebookData.simulationId?.slice(0, 10) || 'N/A'}
+                            Ref: {prebookData.simulationId || 'N/A'}
                         </Text>
 
                         <View style={styles.divider} />
 
-                        <View style={styles.invoiceRow}>
-                            <Text style={styles.invoiceLabel}>Frais de service</Text>
-                            <Text style={styles.invoiceValue}>
-                                {serviceFee.toFixed(2).replace('.', ',')} DH
-                            </Text>
-                        </View>
+
                     </View>
                 </View>
 
@@ -205,7 +193,6 @@ export const PaymentCheckoutScreen = ({ route, navigation }) => {
                 <View style={styles.totalCard}>
                     <View>
                         <Text style={styles.totalLabel}>Total à payer:</Text>
-                        <Text style={styles.totalNote}>*Frais de service inclus</Text>
                     </View>
                     <Text style={styles.totalAmount}>
                         {totalAmount.toLocaleString('fr-MA', { minimumFractionDigits: 2 }).replace('.', ',')} DH

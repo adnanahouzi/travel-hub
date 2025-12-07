@@ -204,4 +204,17 @@ public class NuiteeApiClientImpl implements NuiteeApiClient {
 
         return response;
     }
+
+    @Override
+    public BookResponse getBooking(String bookingId) {
+        String url = properties.getBookingBaseUrl() + "/bookings/" + bookingId;
+        logger.info("Calling Nuitee getBooking API - URL: {}, bookingId: {}", url, bookingId);
+
+        BookResponse response = restTemplate.getForObject(url, BookResponse.class);
+
+        logger.info("Nuitee getBooking response received - bookingId: {}",
+                response != null && response.getData() != null ? response.getData().getBookingId() : "N/A");
+
+        return response;
+    }
 }

@@ -2,8 +2,11 @@ package com.travelhub.booking.mapper;
 
 import com.travelhub.booking.dto.request.RateSearchRequestDto;
 import com.travelhub.booking.dto.response.*;
+import com.travelhub.booking.dto.response.BookResponseDto;
 import com.travelhub.connectors.nuitee.dto.common.Price;
 import com.travelhub.connectors.nuitee.dto.request.HotelRatesRequest;
+import com.travelhub.connectors.nuitee.dto.request.BookRequest;
+import com.travelhub.booking.dto.request.BookingInitiationRequestDto;
 import com.travelhub.connectors.nuitee.dto.response.*;
 import org.springframework.stereotype.Component;
 
@@ -608,6 +611,100 @@ public class BookingMapper {
         dto.setTotalIncludedTaxes(totalIncludedTaxes);
         dto.setTotalExcludedTaxes(totalExcludedTaxes);
 
+        return dto;
+    }
+
+    public BookRequest toBookRequest(BookingInitiationRequestDto requestDto, String prebookId) {
+        if (requestDto == null) {
+            return null;
+        }
+
+        BookRequest request = new BookRequest();
+        request.setPrebookId(prebookId);
+
+        // Map Holder to Guest (single guest for now)
+        BookRequest.Guest guest = new BookRequest.Guest();
+        guest.setFirstName(requestDto.getHolder().getFirstName());
+        guest.setLastName(requestDto.getHolder().getLastName());
+        guest.setEmail(requestDto.getHolder().getEmail());
+        guest.setPhone(requestDto.getHolder().getPhone());
+        // Default occupancy to 1 if not specified (adjust as needed)
+        guest.setOccupancyNumber(1);
+
+        request.setGuests(java.util.Collections.singletonList(guest));
+
+        // Map Payment
+        BookRequest.Payment payment = new BookRequest.Payment();
+        payment.setMethod("CREDIT");
+        // payment.setTransactionId(requestDto.getBankingAccount()); // Not needed for
+        // CREDIT
+
+        request.setPayment(payment);
+
+        return request;
+    }
+
+    public BookResponseDto toBookResponseDto(com.travelhub.connectors.nuitee.dto.response.BookResponse source) {
+        if (source == null) {
+            return null;
+        }
+        BookResponseDto dto = new BookResponseDto();
+        dto.setGuestLevel(source.getGuestLevel());
+        dto.setSandbox(source.getSandbox());
+        dto.setData(toBookDataDto(source.getData()));
+        return dto;
+    }
+
+    private BookResponseDto.BookDataDto toBookDataDto(
+            com.travelhub.connectors.nuitee.dto.response.BookResponse.BookData source) {
+        if (source == null) {
+            return null;
+        }
+        BookResponseDto.BookDataDto dto = new BookResponseDto.BookDataDto();
+        dto.setBookingId(source.getBookingId());
+        dto.setHotelConfirmationCode(source.getHotelConfirmationCode());
+        dto.setReference(source.getReference());
+        dto.setStatus(source.getStatus());
+        dto.setPrice(source.getPrice());
+        dto.setCurrency(source.getCurrency());
+        dto.setCheckin(source.getCheckin());
+        dto.setCheckout(source.getCheckout());
+        dto.setHotelId(source.getHotelId());
+        dto.setHotelName(source.getHotelName());
+        dto.setRooms(toRoomBookedDtos(source.getRooms()));
+        dto.setGuest(toGuestContactDto(source.getGuest()));
+        return dto;
+    }
+
+    private List<BookResponseDto.RoomBookedDto> toRoomBookedDtos(
+            List<com.travelhub.connectors.nuitee.dto.response.BookResponse.RoomBooked> sourceList) {
+        if (sourceList == null) {
+            return null;
+        }
+        return sourceList.stream().map(this::toRoomBookedDto).collect(Collectors.toList());
+    }
+
+    private BookResponseDto.RoomBookedDto toRoomBookedDto(
+            com.travelhub.connectors.nuitee.dto.response.BookResponse.RoomBooked source) {
+        if (source == null) {
+            return null;
+        }
+        BookResponseDto.RoomBookedDto dto = new BookResponseDto.RoomBookedDto();
+        dto.setRoomName(source.getRoomName());
+        dto.setBoardName(source.getBoardName());
+        return dto;
+    }
+
+    private BookResponseDto.GuestContactDto toGuestContactDto(
+            com.travelhub.connectors.nuitee.dto.response.BookResponse.GuestContact source) {
+        if (source == null) {
+            return null;
+        }
+        BookResponseDto.GuestContactDto dto = new BookResponseDto.GuestContactDto();
+        dto.setFirstName(source.getFirstName());
+        dto.setLastName(source.getLastName());
+        dto.setEmail(source.getEmail());
+        dto.setPhone(source.getPhone());
         return dto;
     }
 }

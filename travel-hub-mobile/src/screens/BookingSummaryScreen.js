@@ -337,7 +337,7 @@ export const BookingSummaryScreen = ({ navigation, route }) => {
             // Navigate to payment checkout screen
             navigation.navigate('PaymentCheckout', {
               prebookData: {
-                simulationId: prebookIds,
+                simulationId: batchResponse.simulationId,
                 totalAmount: batchResponse.totalAmount, // Use batchResponse for total amount
                 totalIncludedTaxes: batchResponse.totalIncludedTaxes,
                 totalExcludedTaxes: batchResponse.totalExcludedTaxes,

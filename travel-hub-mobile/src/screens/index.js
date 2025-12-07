@@ -5,3 +5,6 @@ export { RoomListScreen } from './RoomListScreen';
 export { BookingSummaryScreen } from './BookingSummaryScreen';
 export { BookingScreen } from './BookingScreen';
 export { PaymentCheckoutScreen } from './PaymentCheckoutScreen';
+export { OtpVerificationScreen } from './OtpVerificationScreen';
+export { BookingSuccessScreen } from './BookingSuccessScreen';
+export { BookingDetailsScreen } from './BookingDetailsScreen';
