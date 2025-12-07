@@ -79,6 +79,8 @@ export const HotelDetailsScreen = ({ navigation }) => {
   // Reviews Modal State
   const [showReviewsModal, setShowReviewsModal] = useState(false);
 
+  const hotel = hotelDetails || selectedHotel;
+
   useEffect(() => {
     loadHotelDetails();
     loadReviews();
@@ -154,6 +156,36 @@ export const HotelDetailsScreen = ({ navigation }) => {
     }
   };
 
+  // Local state for search location if missing from context
+  const [localSearchLocation, setLocalSearchLocation] = useState(null);
+
+  useEffect(() => {
+    const fetchSearchLocation = async () => {
+      // If we already have it in params, use it
+      if (searchParams.searchLocation) {
+        return;
+      }
+
+      // If we have a placeId, fetch its details
+      if (searchParams.placeId) {
+        try {
+          const details = await ApiService.getPlaceDetails(searchParams.placeId, 'fr');
+          if (details && details.location) {
+            setLocalSearchLocation({
+              latitude: details.location.latitude,
+              longitude: details.location.longitude,
+              description: details.description || searchParams.placeName
+            });
+          }
+        } catch (error) {
+          console.error('Failed to fetch place details:', error);
+        }
+      }
+    };
+
+    fetchSearchLocation();
+  }, [searchParams.searchLocation, searchParams.placeId]);
+
   const loadMoreReviews = async () => {
     if (!selectedHotel || loadingMoreReviews) return;
 
@@ -184,23 +216,29 @@ export const HotelDetailsScreen = ({ navigation }) => {
 
   // Memoize distance calculation to avoid recalculating on every render
   const distanceText = useMemo(() => {
-    if (!searchParams.searchLocation || !hotel?.location) {
+    const location = searchParams.searchLocation || localSearchLocation;
+
+    console.log('Debug Distance - Location:', JSON.stringify(location));
+    console.log('Debug Distance - Hotel Location:', JSON.stringify(hotel?.location));
+
+    if (!location || !hotel?.location) {
       return null;
     }
 
     try {
       const distance = calculateDistance(
-        searchParams.searchLocation.latitude,
-        searchParams.searchLocation.longitude,
+        parseFloat(location.latitude),
+        parseFloat(location.longitude),
         parseFloat(hotel.location.latitude),
         parseFloat(hotel.location.longitude)
       );
+      console.log('Debug Distance - Result:', distance);
       return formatDistance(distance);
     } catch (error) {
       console.error('Error calculating distance:', error);
       return null;
     }
-  }, [searchParams.searchLocation, hotel?.location]);
+  }, [searchParams.searchLocation, localSearchLocation, hotel?.location]);
 
   if (!selectedHotel && !hotelDetails) {
     return (
@@ -210,7 +248,14 @@ export const HotelDetailsScreen = ({ navigation }) => {
     );
   }
 
-  const hotel = hotelDetails || selectedHotel;
+  useEffect(() => {
+    if (selectedHotel) {
+      console.log('Debug - Selected Hotel:', JSON.stringify(selectedHotel, null, 2));
+    }
+    if (hotelDetails) {
+      console.log('Debug - Hotel Details:', JSON.stringify(hotelDetails, null, 2));
+    }
+  }, [selectedHotel, hotelDetails]);
 
   // Collect all available images
   let images = [];
@@ -380,7 +425,7 @@ export const HotelDetailsScreen = ({ navigation }) => {
                 <Ionicons name="location-outline" size={16} color="#6B7280" />
                 <Text style={styles.locationText} numberOfLines={1}>
                   {distanceText
-                    ? `À ${distanceText} de ${searchParams.searchLocation.description || searchParams.placeName || 'la recherche'}`
+                    ? `À ${distanceText} du ${searchParams.searchLocation?.description || localSearchLocation?.description || searchParams.placeName || 'centre-ville'}`
                     : (hotel.city || fullAddress)
                   }
                 </Text>

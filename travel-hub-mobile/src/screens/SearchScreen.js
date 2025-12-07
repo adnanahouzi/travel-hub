@@ -147,6 +147,21 @@ export const SearchScreen = ({ navigation }) => {
           console.error('Error resolving place from text:', err);
         }
       }
+      // If place is selected but location is missing (race condition or previous failure)
+      else if (!searchLocation && currentPlaceId) {
+        try {
+          const details = await ApiService.getPlaceDetails(currentPlaceId, 'fr');
+          if (details && details.location) {
+            searchLocation = {
+              latitude: details.location.latitude,
+              longitude: details.location.longitude,
+              description: details.description || currentPlaceName
+            };
+          }
+        } catch (err) {
+          console.error('Error resolving location for selected place:', err);
+        }
+      }
 
       const occupancies = [
         {
