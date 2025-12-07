@@ -14,6 +14,9 @@ public class BookRequest {
     @JsonProperty("payment")
     private Payment payment;
 
+    @JsonProperty("clientReference")
+    private String clientReference;
+
     public String getPrebookId() {
         return prebookId;
     }
@@ -36,6 +39,14 @@ public class BookRequest {
 
     public void setPayment(Payment payment) {
         this.payment = payment;
+    }
+
+    public String getClientReference() {
+        return clientReference;
+    }
+
+    public void setClientReference(String clientReference) {
+        this.clientReference = clientReference;
     }
 
     public static class Guest {

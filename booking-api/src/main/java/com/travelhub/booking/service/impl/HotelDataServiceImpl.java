@@ -80,4 +80,11 @@ public class HotelDataServiceImpl implements HotelDataService {
 
                 return response;
         }
+
+        @Override
+        public com.travelhub.connectors.nuitee.dto.response.HotelDetailsResponse getHotelDetails(String hotelId,
+                        String language) {
+                logger.info("Fetching hotel details - hotelId: {}, language: {}", hotelId, language);
+                return nuiteeApiClient.getHotelDetails(hotelId, null, language, null);
+        }
 }

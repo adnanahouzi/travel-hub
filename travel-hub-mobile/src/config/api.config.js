@@ -27,5 +27,6 @@ export const ENDPOINTS = {
   INITIATE_BOOKING: '/booking/initiate',
   SUBMIT_BOOKING: '/booking/submit',
   GET_BOOKING: (bookingId) => `/booking/${bookingId}`,
+  GET_HOTEL_DETAILS: (hotelId) => `/hotels/${hotelId}`,
 };
 

@@ -145,8 +145,17 @@ public class BookResponseDto {
     }
 
     public static class RoomBookedDto {
+        private String roomId;
         private String roomName;
         private String boardName;
+
+        public String getRoomId() {
+            return roomId;
+        }
+
+        public void setRoomId(String roomId) {
+            this.roomId = roomId;
+        }
 
         public String getRoomName() {
             return roomName;

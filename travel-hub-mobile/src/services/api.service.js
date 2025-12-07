@@ -94,6 +94,10 @@ export const ApiService = {
   getBooking: async (bookingId) => {
     return apiClient.get(ENDPOINTS.GET_BOOKING(bookingId));
   },
+
+  getHotelDetails: async (hotelId) => {
+    return apiClient.get(ENDPOINTS.GET_HOTEL_DETAILS(hotelId));
+  },
 };
 
 export default apiClient;

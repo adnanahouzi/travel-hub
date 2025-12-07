@@ -36,4 +36,13 @@ public interface HotelDataService {
      */
     HotelReviewsResponseDto getHotelReviews(String hotelId, Integer limit, Integer offset, Integer timeout,
             Boolean getSentiment);
+
+    /**
+     * Get details for a specific hotel
+     *
+     * @param hotelId  the hotel ID
+     * @param language the language code
+     * @return the hotel details response
+     */
+    com.travelhub.connectors.nuitee.dto.response.HotelDetailsResponse getHotelDetails(String hotelId, String language);
 }

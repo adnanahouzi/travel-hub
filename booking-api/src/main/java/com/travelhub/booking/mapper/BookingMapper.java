@@ -641,6 +641,7 @@ public class BookingMapper {
 
         request.setPayment(payment);
 
+
         return request;
     }
 
@@ -690,6 +691,7 @@ public class BookingMapper {
             return null;
         }
         BookResponseDto.RoomBookedDto dto = new BookResponseDto.RoomBookedDto();
+        dto.setRoomId(source.getRoomId());
         dto.setRoomName(source.getRoomName());
         dto.setBoardName(source.getBoardName());
         return dto;

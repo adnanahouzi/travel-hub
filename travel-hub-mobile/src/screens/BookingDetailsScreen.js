@@ -19,19 +19,47 @@ const { width } = Dimensions.get('window');
 export const BookingDetailsScreen = ({ route, navigation }) => {
     const { bookingId } = route.params;
     const [booking, setBooking] = useState(null);
+    const [hotelDetails, setHotelDetails] = useState(null);
+    const [roomDetails, setRoomDetails] = useState(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        fetchBookingDetails();
+        fetchData();
     }, []);
 
-    const fetchBookingDetails = async () => {
+    const fetchData = async () => {
         try {
-            const response = await ApiService.getBooking(bookingId);
-            setBooking(response.data); // Assuming response structure matches BookResponseDto
+            // 1. Fetch booking details
+            const bookingResponse = await ApiService.getBooking(bookingId);
+            const bookingData = bookingResponse.data;
+            setBooking(bookingData);
+
+            // 2. Fetch hotel details if hotelId is available
+            if (bookingData.hotelId) {
+                const hotelResponse = await ApiService.getHotelDetails(bookingData.hotelId);
+                const hotelData = hotelResponse.data;
+                setHotelDetails(hotelData);
+
+                // 3. Find room details
+                if (bookingData.rooms && bookingData.rooms.length > 0) {
+                    const bookedRoomId = bookingData.rooms[0].roomId;
+                    // Try to find the room in hotel details (assuming structure)
+                    // Note: Hotel details might not have room list directly in the same format, 
+                    // but usually has room types. We'll try to match by ID or name if ID is missing.
+                    // For now, we'll use the booking's room info as primary and enrich if possible.
+                    // If hotelData has rooms/roomTypes, we'd search there.
+                    // Let's assume hotelData has a 'roomTypes' array.
+                    if (hotelData.roomTypes) {
+                        const foundRoom = hotelData.roomTypes.find(r => r.roomTypeId === bookedRoomId);
+                        if (foundRoom) {
+                            setRoomDetails(foundRoom);
+                        }
+                    }
+                }
+            }
         } catch (error) {
-            console.error('Error fetching booking details:', error);
-            Alert.alert('Erreur', 'Impossible de récupérer les détails de la réservation');
+            console.error('Error fetching details:', error);
+            Alert.alert('Erreur', 'Impossible de récupérer les détails');
         } finally {
             setLoading(false);
         }
@@ -48,12 +76,22 @@ export const BookingDetailsScreen = ({ route, navigation }) => {
     if (!booking) {
         return (
             <View style={styles.errorContainer}>
-                <Text>Aucune information trouvée pour cette réservation.</Text>
+                <Text>Aucune information trouvée.</Text>
             </View>
         );
     }
 
     const room = booking.rooms && booking.rooms.length > 0 ? booking.rooms[0] : null;
+    // Use hotel image from details if available, else placeholder
+    const hotelImage = hotelDetails?.hotelImages && hotelDetails.hotelImages.length > 0
+        ? hotelDetails.hotelImages[0].url
+        : 'https://via.placeholder.com/400x200';
+
+    // Use room image from details if available
+    const roomImage = roomDetails?.roomImages && roomDetails.roomImages.length > 0
+        ? roomDetails.roomImages[0].url
+        : (hotelDetails?.hotelImages && hotelDetails.hotelImages.length > 1 ? hotelDetails.hotelImages[1].url : 'https://via.placeholder.com/80');
+
 
     return (
         <SafeAreaView style={styles.container}>
@@ -69,12 +107,16 @@ export const BookingDetailsScreen = ({ route, navigation }) => {
                 {/* Hotel Image & Info */}
                 <View style={styles.hotelCard}>
                     <Image
-                        source={{ uri: 'https://via.placeholder.com/400x200' }} // Placeholder or real image if available
+                        source={{ uri: hotelImage }}
                         style={styles.hotelImage}
                     />
                     <View style={styles.hotelInfoOverlay}>
                         <Text style={styles.hotelName}>{booking.hotelName}</Text>
-                        {/* Add stars if available */}
+                        <View style={{ flexDirection: 'row' }}>
+                            {[...Array(hotelDetails?.starRating || 0)].map((_, i) => (
+                                <Ionicons key={i} name="star" size={16} color="#F59E0B" />
+                            ))}
+                        </View>
                     </View>
                 </View>
 
@@ -105,17 +147,16 @@ export const BookingDetailsScreen = ({ route, navigation }) => {
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Localisation</Text>
                     <View style={styles.mapPreview}>
-                        {/* Placeholder for map */}
+                        {/* Use static map or placeholder with real coords if available */}
                         <Image
                             source={{ uri: 'https://via.placeholder.com/400x150' }}
                             style={styles.mapImage}
                         />
-                        <View style={styles.mapMarker}>
-                            <Image
-                                source={{ uri: 'https://via.placeholder.com/40' }}
-                                style={styles.markerImage}
-                            />
-                        </View>
+                        {hotelDetails?.location && (
+                            <View style={styles.addressOverlay}>
+                                <Text style={styles.addressText}>{hotelDetails.location.address}</Text>
+                            </View>
+                        )}
                     </View>
                 </View>
 
@@ -124,7 +165,7 @@ export const BookingDetailsScreen = ({ route, navigation }) => {
                     <Text style={styles.sectionTitle}>Chambres</Text>
                     <View style={styles.roomCard}>
                         <Image
-                            source={{ uri: 'https://via.placeholder.com/80' }}
+                            source={{ uri: roomImage }}
                             style={styles.roomImage}
                         />
                         <View style={styles.roomInfo}>
@@ -404,6 +445,20 @@ const styles = StyleSheet.create({
     markerImage: {
         width: '100%',
         height: '100%',
+    },
+    addressOverlay: {
+        position: 'absolute',
+        bottom: 10,
+        left: 10,
+        right: 10,
+        backgroundColor: 'rgba(0,0,0,0.6)',
+        padding: 8,
+        borderRadius: 8,
+    },
+    addressText: {
+        color: '#FFF',
+        fontSize: 12,
+        fontWeight: '600',
     },
     roomCard: {
         backgroundColor: '#FFF',

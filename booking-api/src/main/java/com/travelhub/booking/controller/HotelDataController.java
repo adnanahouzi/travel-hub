@@ -91,4 +91,24 @@ public class HotelDataController {
 
                 return ResponseEntity.ok(response);
         }
+
+        @GetMapping("/{hotelId}")
+        @Operation(summary = "Get hotel details", description = "Get comprehensive details about a specific hotel")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "Successfully retrieved hotel details", content = @Content(schema = @Schema(implementation = com.travelhub.connectors.nuitee.dto.response.HotelDetailsResponse.class))),
+                        @ApiResponse(responseCode = "404", description = "Hotel not found"),
+                        @ApiResponse(responseCode = "500", description = "Internal server error")
+        })
+        public ResponseEntity<com.travelhub.connectors.nuitee.dto.response.HotelDetailsResponse> getHotelDetails(
+                        @Parameter(description = "Hotel ID", required = true, example = "lp1a92f") @PathVariable String hotelId,
+                        @Parameter(description = "Language code", example = "fr") @RequestParam(required = false, defaultValue = "fr") String language) {
+                logger.info("Received hotel details request - hotelId: {}, language: {}", hotelId, language);
+
+                com.travelhub.connectors.nuitee.dto.response.HotelDetailsResponse response = hotelDataService
+                                .getHotelDetails(hotelId, language);
+
+                logger.info("Hotel details request completed - hotelId: {}", hotelId);
+
+                return ResponseEntity.ok(response);
+        }
 }
