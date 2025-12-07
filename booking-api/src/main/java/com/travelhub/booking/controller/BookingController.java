@@ -85,4 +85,18 @@ public class BookingController {
                         @PathVariable String bookingId) {
                 return ResponseEntity.ok(bookingService.getBooking(bookingId));
         }
+
+        @GetMapping("/list")
+        @Operation(summary = "List bookings", description = "List bookings for a guest or client reference")
+        public ResponseEntity<com.travelhub.booking.dto.response.BookingListResponseDto> listBookings(
+                        @RequestParam(required = false) String guestId,
+                        @RequestParam(required = false) String clientReference) {
+                logger.info("Received list bookings request - guestId: {}, clientReference: {}", guestId,
+                                clientReference);
+                com.travelhub.booking.dto.response.BookingListResponseDto response = bookingService
+                                .listBookings(guestId, clientReference);
+                logger.info("List bookings request completed - bookings found: {}",
+                                response != null && response.getData() != null ? response.getData().size() : 0);
+                return ResponseEntity.ok(response);
+        }
 }

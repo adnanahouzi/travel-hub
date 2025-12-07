@@ -301,7 +301,7 @@ export const BookingDetailsScreen = ({ route, navigation }) => {
 
                 {/* Bottom Buttons */}
                 <View style={styles.bottomButtons}>
-                    <TouchableOpacity style={styles.primaryButton}>
+                    <TouchableOpacity style={styles.primaryButton} onPress={() => navigation.navigate('MyBookings')}>
                         <Text style={styles.primaryButtonText}>Mes réservations</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.secondaryButton}>

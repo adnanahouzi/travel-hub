@@ -217,4 +217,30 @@ public class NuiteeApiClientImpl implements NuiteeApiClient {
 
         return response;
     }
+
+    @Override
+    public com.travelhub.connectors.nuitee.dto.response.BookingListResponse listBookings(String guestId,
+            String clientReference) {
+        String url = properties.getBookingBaseUrl() + "/bookings";
+        UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(url);
+
+        if (guestId != null) {
+            builder.queryParam("guestId", guestId);
+        }
+        if (clientReference != null) {
+            builder.queryParam("clientReference", clientReference);
+        }
+
+        String finalUrl = builder.toUriString();
+        logger.info("Calling Nuitee listBookings API - URL: {}, guestId: {}, clientReference: {}", finalUrl, guestId,
+                clientReference);
+
+        com.travelhub.connectors.nuitee.dto.response.BookingListResponse response = restTemplate.getForObject(finalUrl,
+                com.travelhub.connectors.nuitee.dto.response.BookingListResponse.class);
+
+        logger.info("Nuitee listBookings response received - bookings found: {}",
+                response != null && response.getData() != null ? response.getData().size() : 0);
+
+        return response;
+    }
 }

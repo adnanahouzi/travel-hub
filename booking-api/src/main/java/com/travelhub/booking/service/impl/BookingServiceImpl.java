@@ -2,11 +2,13 @@ package com.travelhub.booking.service.impl;
 
 import com.travelhub.booking.dto.request.PrebookRequestDto;
 import com.travelhub.booking.dto.response.BatchPrebookResponseDto;
+import com.travelhub.booking.dto.response.BookingListResponseDto;
 import com.travelhub.booking.dto.response.PrebookResponseDto;
 import com.travelhub.booking.mapper.BookingMapper;
 import com.travelhub.booking.service.BookingService;
 import com.travelhub.connectors.nuitee.NuiteeApiClient;
 import com.travelhub.connectors.nuitee.dto.request.PrebookRequest;
+import com.travelhub.connectors.nuitee.dto.response.BookingListResponse;
 import com.travelhub.connectors.nuitee.dto.response.PrebookResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -223,5 +225,14 @@ public class BookingServiceImpl implements BookingService {
         com.travelhub.connectors.nuitee.dto.response.BookResponse connectorResponse = nuiteeApiClient
                 .getBooking(bookingId);
         return bookingMapper.toBookResponseDto(connectorResponse);
+    }
+
+    @Override
+    public BookingListResponseDto listBookings(String guestId,
+                                               String clientReference) {
+        logger.info("Listing bookings - guestId: {}, clientReference: {}", guestId, clientReference);
+        BookingListResponse connectorResponse = nuiteeApiClient
+                .listBookings(guestId, clientReference);
+        return bookingMapper.toBookingListResponseDto(connectorResponse);
     }
 }

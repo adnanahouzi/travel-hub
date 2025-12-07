@@ -98,6 +98,12 @@ export const ApiService = {
   getHotelDetails: async (hotelId) => {
     return apiClient.get(ENDPOINTS.GET_HOTEL_DETAILS(hotelId));
   },
+
+  listBookings: async (guestId = '135447') => {
+    return apiClient.get(ENDPOINTS.LIST_BOOKINGS, {
+      params: { guestId }
+    });
+  },
 };
 
 export default apiClient;

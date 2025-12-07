@@ -22,4 +22,13 @@ public interface BookingService {
     Booking submitBooking(BookingInitiationRequestDto request);
 
     com.travelhub.booking.dto.response.BookResponseDto getBooking(String bookingId);
+
+    /**
+     * List bookings for a guest or client reference
+     *
+     * @param guestId         the guest ID
+     * @param clientReference the client reference
+     * @return the list of bookings
+     */
+    com.travelhub.booking.dto.response.BookingListResponseDto listBookings(String guestId, String clientReference);
 }

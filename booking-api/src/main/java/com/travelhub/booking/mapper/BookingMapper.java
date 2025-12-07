@@ -641,7 +641,6 @@ public class BookingMapper {
 
         request.setPayment(payment);
 
-
         return request;
     }
 
@@ -707,6 +706,67 @@ public class BookingMapper {
         dto.setLastName(source.getLastName());
         dto.setEmail(source.getEmail());
         dto.setPhone(source.getPhone());
+        return dto;
+    }
+
+    // Booking List mapping methods
+    public BookingListResponseDto toBookingListResponseDto(
+            BookingListResponse response) {
+        if (response == null || response.getData() == null) {
+            return new BookingListResponseDto();
+        }
+
+        BookingListResponseDto dto = new BookingListResponseDto();
+        List<BookingListResponseDto.BookingDataDto> bookings = response.getData().stream()
+                .map(this::toBookingDataDto)
+                .collect(Collectors.toList());
+        dto.setData(bookings);
+        return dto;
+    }
+
+    private BookingListResponseDto.BookingDataDto toBookingDataDto(
+            com.travelhub.connectors.nuitee.dto.response.BookingListResponse.BookingData data) {
+        if (data == null) {
+            return null;
+        }
+
+        BookingListResponseDto.BookingDataDto dto = new BookingListResponseDto.BookingDataDto();
+        dto.setBookingId(data.getBookingId());
+        dto.setClientReference(data.getClientReference());
+        dto.setStatus(data.getStatus());
+        dto.setCheckin(data.getCheckin());
+        dto.setCheckout(data.getCheckout());
+        dto.setPrice(data.getPrice());
+        dto.setCurrency(data.getCurrency());
+
+        if (data.getHotel() != null) {
+            BookingListResponseDto.HotelInfoDto hotelDto = new BookingListResponseDto.HotelInfoDto();
+            hotelDto.setHotelId(data.getHotel().getHotelId());
+            hotelDto.setName(data.getHotel().getName());
+            dto.setHotel(hotelDto);
+        }
+
+        if (data.getRooms() != null) {
+            List<BookingListResponseDto.RoomInfoDto> rooms = data.getRooms().stream()
+                    .map(this::toRoomInfoDto)
+                    .collect(Collectors.toList());
+            dto.setRooms(rooms);
+        }
+
+        return dto;
+    }
+
+    private BookingListResponseDto.RoomInfoDto toRoomInfoDto(
+            com.travelhub.connectors.nuitee.dto.response.BookingListResponse.RoomInfo room) {
+        if (room == null) {
+            return null;
+        }
+
+        BookingListResponseDto.RoomInfoDto dto = new BookingListResponseDto.RoomInfoDto();
+        dto.setRoomId(room.getRoomId());
+        dto.setAdults(room.getAdults());
+        dto.setAmount(room.getAmount());
+        dto.setCurrency(room.getCurrency());
         return dto;
     }
 }

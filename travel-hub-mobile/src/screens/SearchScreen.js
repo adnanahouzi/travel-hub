@@ -310,7 +310,7 @@ export const SearchScreen = ({ navigation }) => {
               <TouchableOpacity style={[styles.actionButton, styles.actionButtonActive]}>
                 <Text style={styles.actionButtonTextActive}>Découvrir</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.actionButton}>
+              <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate('MyBookings')}>
                 <Text style={styles.actionButtonText}>Mes réservations</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.actionButton}>

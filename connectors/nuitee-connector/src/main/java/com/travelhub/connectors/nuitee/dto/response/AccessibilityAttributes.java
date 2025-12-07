@@ -1,8 +1,17 @@
 package com.travelhub.connectors.nuitee.dto.response;
 
-public class AccessibilityAttributes {
-    // Simplified map-like structure or specific fields if needed
-    // For this example, we'll leave it open or map as needed based on specific usage
-    // Can be extended with publicArea, receptionAndRestaurant, etc. inner classes
-}
+import java.util.HashMap;
+import java.util.Map;
 
+public class AccessibilityAttributes {
+    // Dynamic map to hold any accessibility attributes
+    private Map<String, Object> attributes = new HashMap<>();
+
+    public Map<String, Object> getAttributes() {
+        return attributes;
+    }
+
+    public void setAttributes(Map<String, Object> attributes) {
+        this.attributes = attributes;
+    }
+}

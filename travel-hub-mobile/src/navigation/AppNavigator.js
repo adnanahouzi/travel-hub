@@ -11,7 +11,8 @@ import {
   PaymentCheckoutScreen,
   OtpVerificationScreen,
   BookingSuccessScreen,
-  BookingDetailsScreen
+  BookingDetailsScreen,
+  MyBookingsScreen
 } from '../screens';
 
 const Stack = createStackNavigator();
@@ -36,6 +37,7 @@ export const AppNavigator = () => {
         <Stack.Screen name="OtpVerification" component={OtpVerificationScreen} />
         <Stack.Screen name="BookingSuccess" component={BookingSuccessScreen} />
         <Stack.Screen name="BookingDetails" component={BookingDetailsScreen} />
+        <Stack.Screen name="MyBookings" component={MyBookingsScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
