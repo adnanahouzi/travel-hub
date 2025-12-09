@@ -10,6 +10,8 @@ import com.travelhub.connectors.nuitee.dto.response.HotelRatesResponse;
 import com.travelhub.connectors.nuitee.dto.response.HotelReviewsResponse;
 import com.travelhub.connectors.nuitee.dto.response.PlaceResponse;
 import com.travelhub.connectors.nuitee.dto.response.PrebookResponse;
+import com.travelhub.connectors.nuitee.dto.request.HotelsListRequest;
+import com.travelhub.connectors.nuitee.dto.response.HotelsListResponse;
 
 import com.travelhub.connectors.nuitee.dto.response.HotelListResponse;
 import com.travelhub.connectors.nuitee.dto.response.PlaceDetailsResponse;
@@ -18,6 +20,8 @@ public interface NuiteeApiClient {
         HotelListResponse getHotels(String countryCode, String city, Integer limit, Integer offset, Double latitude,
                         Double longitude, Integer distance, List<String> hotelIds, Integer minStars, Integer maxStars,
                         String placeId);
+
+        HotelsListResponse getHotels(HotelsListRequest request);
 
         HotelRatesResponse retrieveHotelRates(HotelRatesRequest request);
 

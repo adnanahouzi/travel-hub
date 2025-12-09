@@ -386,8 +386,8 @@ public class BookingMapper {
         hotelRatesRequest.setAiSearch(request.getAiSearch());
         hotelRatesRequest.setTimeout(request.getTimeout());
         hotelRatesRequest.setRoomMapping(request.getRoomMapping());
-        hotelRatesRequest.setLimit(request.getLimit());
-        hotelRatesRequest.setOffset(request.getOffset());
+       // hotelRatesRequest.setLimit(request.getLimit());
+       // hotelRatesRequest.setOffset(request.getOffset());
         hotelRatesRequest.setWeatherInfo(request.getWeatherInfo());
         hotelRatesRequest.setStream(request.getStream());
         hotelRatesRequest.setHotelName(request.getHotelName());
@@ -412,27 +412,27 @@ public class BookingMapper {
                 .collect(Collectors.toList());
     }
 
-    public RateSearchResponseDto toRateSearchResponseDto(HotelRatesResponse response) {
+    public RateSearchResponseDto toRateSearchResponseDto(HotelRatesResponse response, HotelsListResponse hotelsListResponse) {
         if (response == null) {
             return null;
         }
         RateSearchResponseDto rateSearchResponse = new RateSearchResponseDto();
-        rateSearchResponse.setHotels(mergeHotelData(response.getData(), response.getHotels()));
+        rateSearchResponse.setHotels(mergeHotelData(response.getData(), hotelsListResponse.getData()));
         rateSearchResponse.setGuestLevel(response.getGuestLevel());
         rateSearchResponse.setSandbox(response.getSandbox());
         rateSearchResponse.setSessionId(response.getSessionId());
         return rateSearchResponse;
     }
 
-    private List<HotelAvailabilityDto> mergeHotelData(List<HotelRate> hotelRates, List<HotelInfo> hotelInfos) {
+    private List<HotelAvailabilityDto> mergeHotelData(List<HotelRate> hotelRates, List<MinimalHotelData> hotelInfos) {
         if (hotelRates == null) {
             return null;
         }
 
         // Create a map of hotel info by hotel id for quick lookup
-        java.util.Map<String, HotelInfo> hotelInfoMap = new java.util.HashMap<>();
+        java.util.Map<String, MinimalHotelData> hotelInfoMap = new java.util.HashMap<>();
         if (hotelInfos != null) {
-            for (HotelInfo info : hotelInfos) {
+            for (MinimalHotelData info : hotelInfos) {
                 hotelInfoMap.put(info.getId(), info);
             }
         }
@@ -442,7 +442,7 @@ public class BookingMapper {
                 .collect(Collectors.toList());
     }
 
-    private HotelAvailabilityDto mergeHotelAvailability(HotelRate hotelRate, HotelInfo hotelInfo) {
+    private HotelAvailabilityDto mergeHotelAvailability(HotelRate hotelRate, MinimalHotelData hotelInfo) {
         if (hotelRate == null) {
             return null;
         }
@@ -459,10 +459,22 @@ public class BookingMapper {
             dto.setName(hotelInfo.getName());
             dto.setMainPhoto(hotelInfo.getMainPhoto());
             dto.setAddress(hotelInfo.getAddress());
-            dto.setRating(hotelInfo.getRating());
-            dto.setLocation(toLocationDto(hotelInfo.getLocation()));
+            dto.setRating(hotelInfo.getRating() != null ? BigDecimal.valueOf(hotelInfo.getRating()) : null);
+            dto.setReviewCount(hotelInfo.getReviewCount());
+            dto.setStars(hotelInfo.getStars());
+            dto.setLocation(toLocationDto(hotelInfo.getLongitude(), hotelInfo.getLatitude()));
         }
 
+        return dto;
+    }
+
+    private LocationDto toLocationDto(BigDecimal longitude, BigDecimal latitude) {
+        if (longitude == null ) {
+            return null;
+        }
+        LocationDto dto = new LocationDto();
+        dto.setLatitude(latitude);
+        dto.setLongitude(longitude);
         return dto;
     }
 

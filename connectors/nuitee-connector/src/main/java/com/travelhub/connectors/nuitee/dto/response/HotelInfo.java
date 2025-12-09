@@ -12,6 +12,8 @@ public class HotelInfo {
 
     private String address;
     private BigDecimal rating;
+    private Integer reviewCount;
+    private Integer starRating;
     private Location location;
 
     public String getId() {
@@ -52,6 +54,22 @@ public class HotelInfo {
 
     public void setRating(BigDecimal rating) {
         this.rating = rating;
+    }
+
+    public Integer getReviewCount() {
+        return reviewCount;
+    }
+
+    public void setReviewCount(Integer reviewCount) {
+        this.reviewCount = reviewCount;
+    }
+
+    public Integer getStarRating() {
+        return starRating;
+    }
+
+    public void setStarRating(Integer starRating) {
+        this.starRating = starRating;
     }
 
     public Location getLocation() {

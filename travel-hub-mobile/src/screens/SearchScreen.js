@@ -25,7 +25,7 @@ import { HotelCard } from '../components';
 const { width, height } = Dimensions.get('window');
 
 export const SearchScreen = ({ navigation }) => {
-  const { searchParams, updateSearchParams, setSearchResults, setTotalResults, setLoading, loading, setSelectedHotel } = useBooking();
+  const { searchParams, updateSearchParams, setSearchResults, setLoading, loading, setSelectedHotel } = useBooking();
 
   // Search State
   const [destination, setDestination] = useState('');
@@ -237,8 +237,6 @@ export const SearchScreen = ({ navigation }) => {
         occupancies: occupancies,
         guestNationality: 'MA',
         currency: 'MAD',
-        limit: 50,
-        offset: 0, // Start from beginning
         roomMapping: false,
         sort: [
           {
@@ -250,9 +248,6 @@ export const SearchScreen = ({ navigation }) => {
 
       const results = await ApiService.searchRates(searchRequest);
       setSearchResults(results.hotels || []);
-      // If total is provided by API use it, otherwise assume there are more results (e.g. 10000)
-      // pagination will stop when a page returns fewer items than the limit
-      setTotalResults(results.total || 10000);
       navigation.navigate('HotelList');
     } catch (error) {
       console.error('Search error:', error);

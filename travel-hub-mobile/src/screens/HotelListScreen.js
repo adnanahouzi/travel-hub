@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,68 +14,40 @@ import { LoadingSpinner } from '../components';
 import { useBooking } from '../context/BookingContext';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { ApiService } from '../services/api.service';
 
 const { width } = Dimensions.get('window');
+const HOTELS_PER_PAGE = 10;
 
 export const HotelListScreen = ({ navigation }) => {
   const {
     searchResults,
     searchParams,
-    totalResults,
-    setTotalResults,
-    appendSearchResults,
     loading,
-    loadingMore,
-    setLoadingMore,
     setSelectedHotel
   } = useBooking();
+
+  // Frontend pagination state
+  const [displayedCount, setDisplayedCount] = useState(HOTELS_PER_PAGE);
+
+  // Reset pagination when search results change
+  useEffect(() => {
+    setDisplayedCount(HOTELS_PER_PAGE);
+  }, [searchResults.length]);
 
   const handleHotelPress = (hotel) => {
     setSelectedHotel(hotel);
     navigation.navigate('HotelDetails');
   };
 
-  const loadMoreHotels = async () => {
-    if (loadingMore) return;
+  // Frontend pagination: slice the results to show only displayedCount hotels
+  const displayedHotels = useMemo(() => {
+    return searchResults.slice(0, displayedCount);
+  }, [searchResults, displayedCount]);
 
-    try {
-      setLoadingMore(true);
-      const currentOffset = searchResults.length;
-      const limit = 50;
+  const hasMoreHotels = displayedCount < searchResults.length;
 
-      const searchRequest = {
-        placeId: searchParams.placeId,
-        checkin: searchParams.checkin,
-        checkout: searchParams.checkout,
-        occupancies: searchParams.occupancies,
-        guestNationality: searchParams.guestNationality || 'MA',
-        currency: searchParams.currency || 'MAD',
-        limit: limit,
-        offset: currentOffset,
-        roomMapping: false,
-        sort: [
-          {
-            field: 'top_picks',
-            direction: 'ascending'
-          }
-        ]
-      };
-
-      const results = await ApiService.searchRates(searchRequest);
-      const newHotels = results.hotels || [];
-
-      appendSearchResults(newHotels);
-
-      // If we received fewer items than the limit, we've reached the end
-      if (newHotels.length < limit) {
-        setTotalResults(currentOffset + newHotels.length);
-      }
-    } catch (error) {
-      console.error('Load more error:', error);
-    } finally {
-      setLoadingMore(false);
-    }
+  const loadMoreHotels = () => {
+    setDisplayedCount(prev => prev + HOTELS_PER_PAGE);
   };
 
   if (loading) {
@@ -182,7 +154,7 @@ export const HotelListScreen = ({ navigation }) => {
               {item.name}
             </Text>
             <View style={styles.starRatingContainer}>
-              {[...Array(item.starRating || 5)].map((_, i) => (
+              {[...Array(item.stars || 5)].map((_, i) => (
                 <Ionicons key={i} name="star" size={12} color="#F59E0B" />
               ))}
             </View>
@@ -258,29 +230,22 @@ export const HotelListScreen = ({ navigation }) => {
 
       {/* Hotel List */}
       <FlatList
-        data={searchResults}
+        data={displayedHotels}
         keyExtractor={(item) => item.hotelId}
         renderItem={renderHotelCard}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
         ListFooterComponent={
-          searchResults.length > 0 && searchResults.length < totalResults ? (
+          hasMoreHotels ? (
             <View style={styles.loadMoreContainer}>
               <TouchableOpacity
                 style={styles.loadMoreButton}
                 onPress={loadMoreHotels}
-                disabled={loadingMore}
               >
-                {loadingMore ? (
-                  <Text style={styles.loadMoreText}>Chargement...</Text>
-                ) : (
-                  <>
-                    <Text style={styles.loadMoreText}>
-                      Afficher plus d'hôtels
-                    </Text>
-                    <Ionicons name="chevron-down" size={20} color="#0066CC" />
-                  </>
-                )}
+                <Text style={styles.loadMoreText}>
+                  Afficher plus d'hôtels ({searchResults.length - displayedCount} restants)
+                </Text>
+                <Ionicons name="chevron-down" size={20} color="#0066CC" />
               </TouchableOpacity>
             </View>
           ) : null

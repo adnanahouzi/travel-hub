@@ -3,6 +3,7 @@ package com.travelhub.connectors.nuitee;
 import com.travelhub.connectors.nuitee.dto.request.BookRequest;
 import com.travelhub.connectors.nuitee.dto.request.HotelRatesRequest;
 import com.travelhub.connectors.nuitee.dto.request.PrebookRequest;
+import com.travelhub.connectors.nuitee.dto.request.HotelsListRequest;
 import com.travelhub.connectors.nuitee.dto.response.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -66,6 +67,70 @@ public class NuiteeApiClientImpl implements NuiteeApiClient {
                 com.travelhub.connectors.nuitee.dto.response.HotelListResponse.class);
 
         logger.info("Nuitee hotels response received - hotels found: {}",
+                response != null && response.getData() != null ? response.getData().size() : 0);
+
+        return response;
+    }
+
+    @Override
+    public HotelsListResponse getHotels(HotelsListRequest request) {
+        logger.info("Fetching hotels list with request: placeId={}, city={}, latitude={}, longitude={}",
+                request.getPlaceId(), request.getCityName(), request.getLatitude(), request.getLongitude());
+
+        // Build URL with query parameters
+        UriComponentsBuilder builder = UriComponentsBuilder.fromPath(HOTELS_ENDPOINT);
+
+        if (request.getCountryCode() != null)
+            builder.queryParam("countryCode", request.getCountryCode());
+        if (request.getCityName() != null)
+            builder.queryParam("cityName", request.getCityName());
+        if (request.getHotelName() != null)
+            builder.queryParam("hotelName", request.getHotelName());
+        if (request.getLimit() != null)
+            builder.queryParam("limit", request.getLimit());
+        if (request.getOffset() != null)
+            builder.queryParam("offset", request.getOffset());
+        if (request.getLastUpdatedAt() != null)
+            builder.queryParam("lastUpdatedAt", request.getLastUpdatedAt());
+        if (request.getLatitude() != null && request.getLongitude() != null) {
+            builder.queryParam("latitude", request.getLatitude());
+            builder.queryParam("longitude", request.getLongitude());
+            if (request.getRadius() != null)
+                builder.queryParam("radius", request.getRadius());
+        }
+        if (request.getAiSearch() != null)
+            builder.queryParam("aiSearch", request.getAiSearch());
+        if (request.getTimeout() != null)
+            builder.queryParam("timeout", request.getTimeout());
+        if (request.getZip() != null)
+            builder.queryParam("zip", request.getZip());
+        if (request.getMinRating() != null)
+            builder.queryParam("minRating", request.getMinRating());
+        if (request.getMinReviewsCount() != null)
+            builder.queryParam("minReviewsCount", request.getMinReviewsCount());
+        if (request.getFacilityIds() != null)
+            builder.queryParam("facilityIds", request.getFacilityIds());
+        if (request.getHotelTypeIds() != null)
+            builder.queryParam("hotelTypeIds", request.getHotelTypeIds());
+        if (request.getChainIds() != null)
+            builder.queryParam("chainIds", request.getChainIds());
+        if (request.getStrictFacilitiesFiltering() != null)
+            builder.queryParam("strictFacilitiesFiltering", request.getStrictFacilitiesFiltering());
+        if (request.getStarRating() != null)
+            builder.queryParam("starRating", request.getStarRating());
+        if (request.getPlaceId() != null)
+            builder.queryParam("placeId", request.getPlaceId());
+        if (request.getLanguage() != null)
+            builder.queryParam("language", request.getLanguage());
+        if (request.getHotelIds() != null)
+            builder.queryParam("hotelIds", request.getHotelIds());
+        if (request.getAdvancedAccessibilityOnly() != null)
+            builder.queryParam("advancedAccessibilityOnly", request.getAdvancedAccessibilityOnly());
+
+        String url = builder.build().toUriString();
+        HotelsListResponse response = restTemplate.getForObject(url, HotelsListResponse.class);
+
+        logger.info("Hotels list response received - hotels found: {}",
                 response != null && response.getData() != null ? response.getData().size() : 0);
 
         return response;
