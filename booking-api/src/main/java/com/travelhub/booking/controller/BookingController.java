@@ -88,13 +88,10 @@ public class BookingController {
 
         @GetMapping("/list")
         @Operation(summary = "List bookings", description = "List bookings for a guest or client reference")
-        public ResponseEntity<BookingListResponseDto> listBookings(
-                        @RequestParam(required = false) String guestId,
-                        @RequestParam(required = false) String clientReference) {
-                logger.info("Received list bookings request - guestId: {}, clientReference: {}", guestId,
-                                clientReference);
+        public ResponseEntity<BookingListResponseDto> listBookings() {
+                logger.info("Received list bookings request ");
                 BookingListResponseDto response = bookingService
-                                .listBookings(guestId, clientReference);
+                                .listBookings();
                 logger.info("List bookings request completed - bookings found: {}",
                                 response != null && response.getData() != null ? response.getData().size() : 0);
                 return ResponseEntity.ok(response);

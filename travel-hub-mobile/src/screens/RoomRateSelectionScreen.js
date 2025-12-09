@@ -95,9 +95,11 @@ export const RoomRateSelectionScreen = ({ navigation, route }) => {
         const cancellation = getCancellationTag(item);
         const breakfast = getBreakfastTag(item);
 
-        // Price Calculation (use suggestedSellingPrice)
-        const totalPrice = item.retailRate?.suggestedSellingPrice?.[0]?.amount || 0;
-        const currency = item.retailRate?.suggestedSellingPrice?.[0]?.currency || 'MAD';
+        // Price Calculation (use offerRetailRate - mapped to total in RetailRateDetailDto)
+        const totalPrice = item.retailRate?.total?.[0]?.amount || 0;
+        const currency = item.retailRate?.total?.[0]?.currency || 'MAD';
+        // offerInitialPrice is mapped to initialPrice in RetailRateDetailDto
+        const initialPrice = item.retailRate?.initialPrice?.[0]?.amount;
         const formattedPrice = new Intl.NumberFormat('fr-MA', {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2
@@ -126,6 +128,11 @@ export const RoomRateSelectionScreen = ({ navigation, route }) => {
 
                 <View style={styles.priceSection}>
                     <View>
+                        {initialPrice && initialPrice > totalPrice && (
+                            <Text style={styles.originalPrice}>
+                                {initialPrice.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {currency}
+                            </Text>
+                        )}
                         <View style={styles.priceRow}>
                             <Text style={styles.price}>{formattedPrice} {currency}</Text>
                             <Text style={styles.perNight}>/La nuitée</Text>
@@ -298,6 +305,13 @@ const styles = StyleSheet.create({
         borderTopColor: '#F3F4F6',
         paddingTop: 16,
         alignItems: 'flex-end',
+    },
+    originalPrice: {
+        fontSize: 16,
+        color: '#9CA3AF',
+        textDecorationLine: 'line-through',
+        textAlign: 'right',
+        marginBottom: 4,
     },
     priceRow: {
         flexDirection: 'row',

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,8 @@ import {
   Modal,
   StatusBar,
   Linking,
-  ActivityIndicator
+  ActivityIndicator,
+  FlatList
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { format } from 'date-fns';
@@ -55,7 +56,6 @@ const MOCK_CATEGORIES = [
   { label: 'Expérience', score: 9, color: '#10B981' },
 ];
 
-import { calculateDistance, formatDistance } from '../utils/distance';
 
 export const HotelDetailsScreen = ({ navigation }) => {
   const { selectedHotel, searchParams } = useBooking();
@@ -63,6 +63,7 @@ export const HotelDetailsScreen = ({ navigation }) => {
   const [reviews, setReviews] = useState(null);
   const [reviewsOffset, setReviewsOffset] = useState(0);
   const [loadingMoreReviews, setLoadingMoreReviews] = useState(false);
+  const [loadingReviews, setLoadingReviews] = useState(false);
   const [totalReviews, setTotalReviews] = useState(0);
   const [loading, setLoading] = useState(false);
 
@@ -83,10 +84,10 @@ export const HotelDetailsScreen = ({ navigation }) => {
 
   useEffect(() => {
     loadHotelDetails();
-    loadReviews();
+    // Don't load reviews automatically - only when user clicks "Lire les X avis"
   }, []);
 
-  const getIcon = (name) => {
+  const getIcon = useCallback((name) => {
     const lowerName = name.toLowerCase();
     if (lowerName.includes('wifi')) return 'wifi-outline';
     if (lowerName.includes('pool') || lowerName.includes('piscine')) return 'water-outline';
@@ -99,7 +100,7 @@ export const HotelDetailsScreen = ({ navigation }) => {
     if (lowerName.includes('handicap')) return 'accessibility-outline';
     if (lowerName.includes('smoke') || lowerName.includes('fumeur')) return 'ban-outline';
     return 'checkmark-circle-outline';
-  };
+  }, []);
 
   const loadHotelDetails = async () => {
     if (!selectedHotel) return;
@@ -142,6 +143,7 @@ export const HotelDetailsScreen = ({ navigation }) => {
     if (!selectedHotel) return;
 
     try {
+      setLoadingReviews(true);
       setReviewsOffset(0);
       const reviewsData = await ApiService.getHotelReviews(selectedHotel.hotelId, {
         limit: 10,
@@ -152,7 +154,18 @@ export const HotelDetailsScreen = ({ navigation }) => {
       setTotalReviews(reviewsData.total || 0);
     } catch (error) {
       console.error('Failed to load reviews:', error);
+      Alert.alert('Erreur', 'Impossible de charger les avis');
+    } finally {
+      setLoadingReviews(false);
     }
+  };
+
+  const handleReadReviews = async () => {
+    // Load reviews when user clicks "Lire les X avis"
+    if (!reviews && !loadingReviews) {
+      await loadReviews();
+    }
+    setShowReviewsModal(true);
   };
 
   // Local state for search location if missing from context
@@ -213,29 +226,14 @@ export const HotelDetailsScreen = ({ navigation }) => {
     }
   };
 
-  // Memoize distance calculation to avoid recalculating on every render
+  // Use distance from selectedHotel (already calculated in backend)
   const distanceText = useMemo(() => {
-    const location = searchParams.searchLocation || localSearchLocation;
-
-
-    if (!location || !hotel?.location) {
-      return null;
+    // Get distance from selectedHotel if available (from hotel list)
+    if (selectedHotel?.distance != null) {
+      return `À ${selectedHotel.distance.toFixed(1).replace('.', ',')} km du centre-ville`;
     }
-
-    try {
-      const distance = calculateDistance(
-        parseFloat(location.latitude),
-        parseFloat(location.longitude),
-        parseFloat(hotel.location.latitude),
-        parseFloat(hotel.location.longitude)
-      );
-
-      return formatDistance(distance);
-    } catch (error) {
-      console.error('Error calculating distance:', error);
-      return null;
-    }
-  }, [searchParams.searchLocation, localSearchLocation, hotel?.location]);
+    return null;
+  }, [selectedHotel?.distance]);
 
   if (!selectedHotel && !hotelDetails) {
     return (
@@ -245,80 +243,117 @@ export const HotelDetailsScreen = ({ navigation }) => {
     );
   }
 
-  useEffect(() => {
-    if (selectedHotel) {
+
+  // Memoize images collection
+  const images = useMemo(() => {
+    if (hotelDetails?.images && hotelDetails.images.length > 0) {
+      return hotelDetails.images.map(img => img.url).filter(url => url);
+    } else if (hotel?.photos && hotel.photos.length > 0) {
+      return hotel.photos.map(p => p.url).filter(url => url);
+    } else if (hotel?.mainPhoto) {
+      return [hotel.mainPhoto];
+    } else {
+      return ['https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800'];
     }
-    if (hotelDetails) {
-    }
-  }, [selectedHotel, hotelDetails]);
+  }, [hotelDetails?.images, hotel?.photos, hotel?.mainPhoto]);
 
-  // Collect all available images
-  let images = [];
-  if (hotelDetails?.images && hotelDetails.images.length > 0) {
-    images = hotelDetails.images.map(img => img.url).filter(url => url);
-  } else if (hotel.photos && hotel.photos.length > 0) {
-    images = hotel.photos.map(p => p.url).filter(url => url);
-  } else if (hotel.mainPhoto) {
-    images = [hotel.mainPhoto];
-  } else {
-    images = ['https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800'];
-  }
+  // Memoize price calculation - use offerRetailRate (promotional price)
+  const { totalPrice, currency, initialPrice } = useMemo(() => {
+    const firstGroup = hotelDetails?.groupedRates?.[0];
+    return {
+      // offerRetailRate is mapped to total in RetailRateDetailDto
+      totalPrice: firstGroup?.startingPrice?.total?.[0]?.amount || 0,
+      currency: firstGroup?.startingPrice?.total?.[0]?.currency || 'DH',
+      // offerInitialPrice is mapped to initialPrice in RetailRateDetailDto
+      initialPrice: firstGroup?.startingPrice?.initialPrice?.[0]?.amount
+    };
+  }, [hotelDetails?.groupedRates]);
 
-  // Get lowest price from first grouped rate (backend sorts by price ascending)
-  const firstGroup = hotelDetails?.groupedRates?.[0];
-  const totalPrice = firstGroup?.startingPrice?.suggestedSellingPrice?.[0]?.amount || 0;
-  const currency = firstGroup?.startingPrice?.suggestedSellingPrice?.[0]?.currency || 'DH';
+  // Memoize expensive calculations
+  const fullAddress = useMemo(() => {
+    return [
+      hotel?.address,
+      hotel?.city,
+      hotel?.zip,
+      hotel?.country
+    ].filter(Boolean).join(', ');
+  }, [hotel?.address, hotel?.city, hotel?.zip, hotel?.country]);
 
-  // Build complete address
-  const fullAddress = [
-    hotel.address,
-    hotel.city,
-    hotel.zip,
-    hotel.country
-  ].filter(Boolean).join(', ');
+  const hotelDescriptionHtml = useMemo(() => {
+    return hotel?.description || hotel?.hotelDescription || '';
+  }, [hotel?.description, hotel?.hotelDescription]);
 
-  const hotelDescriptionHtml = hotel.description || hotel.hotelDescription || '';
-  const importantInformationHtml = hotel.importantInformation || '';
+  const importantInformationHtml = useMemo(() => {
+    return hotel?.importantInformation || '';
+  }, [hotel?.importantInformation]);
 
   // Extract items from importantInformation - handle both HTML <li> tags and plain text with asterisks/bullets
-  const importantItems = [];
-  if (importantInformationHtml) {
-    // First try to extract <li> tags (HTML format)
-    const liRegex = /<li[^>]*>(.*?)<\/li>/gis;
-    let match;
-    // eslint-disable-next-line no-cond-assign
-    while ((match = liRegex.exec(importantInformationHtml)) !== null) {
-      importantItems.push(match[1].trim());
-    }
+  const importantItems = useMemo(() => {
+    const items = [];
+    if (importantInformationHtml) {
+      // First try to extract <li> tags (HTML format)
+      const liRegex = /<li[^>]*>(.*?)<\/li>/gis;
+      let match;
+      // eslint-disable-next-line no-cond-assign
+      while ((match = liRegex.exec(importantInformationHtml)) !== null) {
+        items.push(match[1].trim());
+      }
 
-    // If no <li> tags found, try splitting by asterisks or bullet points (plain text format)
-    if (importantItems.length === 0) {
-      const lines = importantInformationHtml
-        .split(/\n/)
-        .map(line => line.trim())
-        .filter(line => line.length > 0)
-        .map(line => line.replace(/^[*•\-]\s*/, '')) // Remove leading *, •, or - bullets
-        .filter(line => line.length > 0);
+      // If no <li> tags found, try splitting by asterisks or bullet points (plain text format)
+      if (items.length === 0) {
+        const lines = importantInformationHtml
+          .split(/\n/)
+          .map(line => line.trim())
+          .filter(line => line.length > 0)
+          .map(line => line.replace(/^[*•\-]\s*/, '')) // Remove leading *, •, or - bullets
+          .filter(line => line.length > 0);
 
-      importantItems.push(...lines);
+        items.push(...lines);
+      }
     }
-  }
+    return items;
+  }, [importantInformationHtml]);
 
   // Get real facilities
-  const facilities = hotel.facilities || [];
-  const displayFacilities = facilities.slice(0, 10); // Show first 10
+  const facilities = useMemo(() => {
+    return hotel?.facilities || [];
+  }, [hotel?.facilities]);
 
-  const onScroll = (nativeEvent) => {
-    if (nativeEvent) {
-      const slide = Math.ceil(nativeEvent.contentOffset.x / nativeEvent.layoutMeasurement.width);
-      if (slide !== activeSlide) {
+  const displayFacilities = useMemo(() => {
+    return facilities.slice(0, 10); // Show first 10
+  }, [facilities]);
+
+  const onScroll = useCallback((event) => {
+    if (event?.nativeEvent) {
+      const slide = Math.ceil(event.nativeEvent.contentOffset.x / event.nativeEvent.layoutMeasurement.width);
+      if (slide !== activeSlide && slide >= 0) {
         setActiveSlide(slide);
       }
     }
-  };
+  }, [activeSlide]);
 
-  const openMaps = () => {
-    if (!hotel.location?.latitude || !hotel.location?.longitude) {
+  // Memoized image renderer for FlatList
+  const renderImageItem = useCallback(({ item: img, index }) => {
+    return (
+      <TouchableOpacity
+        activeOpacity={0.9}
+        onPress={() => {
+          setViewerIndex(index);
+          setShowImageViewer(true);
+        }}
+        style={styles.sliderImageContainer}
+      >
+        <Image
+          source={{ uri: img }}
+          style={styles.sliderImage}
+          resizeMode="cover"
+        />
+      </TouchableOpacity>
+    );
+  }, []);
+
+  const openMaps = useCallback(() => {
+    if (!hotel?.location?.latitude || !hotel?.location?.longitude) {
       Alert.alert('Erreur', 'Coordonnées de localisation non disponibles');
       return;
     }
@@ -337,39 +372,56 @@ export const HotelDetailsScreen = ({ navigation }) => {
       const webUrl = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
       Linking.openURL(webUrl);
     });
-  };
+  }, [hotel?.location, hotel?.name]);
+
+  // Memoize RenderHTML tags styles
+  const htmlTagsStyles = useMemo(() => ({
+    p: { fontSize: 14, color: '#4B5563', lineHeight: 20, marginBottom: 8 },
+    strong: { fontWeight: '700', color: '#111827' },
+    ul: { paddingLeft: 16, marginBottom: 8 },
+    li: { fontSize: 14, color: '#4B5563', lineHeight: 20, marginBottom: 4 },
+    br: { marginBottom: 4 },
+  }), []);
+
+  const itemHtmlTagsStyles = useMemo(() => ({
+    p: {
+      fontSize: 14,
+      color: '#4B5563',
+      lineHeight: 20,
+      marginBottom: 6,
+    },
+  }), []);
 
   return (
     <View style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
+      <ScrollView 
+        showsVerticalScrollIndicator={false} 
+        contentContainerStyle={{ paddingBottom: 120 }}
+        removeClippedSubviews={true}
+      >
         {/* Header / Image Carousel */}
         <View style={styles.sliderContainer}>
-          <ScrollView
+          <FlatList
             ref={scrollViewRef}
-            pagingEnabled
+            data={images}
+            renderItem={renderImageItem}
+            keyExtractor={(item, index) => `image-${index}`}
             horizontal
-            onScroll={({ nativeEvent }) => onScroll(nativeEvent)}
+            pagingEnabled
             showsHorizontalScrollIndicator={false}
+            onScroll={onScroll}
             scrollEventThrottle={16}
+            removeClippedSubviews={true}
+            initialNumToRender={3}
+            maxToRenderPerBatch={2}
+            windowSize={5}
+            getItemLayout={(data, index) => ({
+              length: width,
+              offset: width * index,
+              index,
+            })}
             style={styles.slider}
-          >
-            {images.map((img, index) => (
-              <TouchableOpacity
-                key={index}
-                activeOpacity={0.9}
-                onPress={() => {
-                  setViewerIndex(index);
-                  setShowImageViewer(true);
-                }}
-              >
-                <Image
-                  source={{ uri: img }}
-                  style={styles.sliderImage}
-                  resizeMode="cover"
-                />
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+          />
 
           {/* View All Photos Button - Updated Style */}
           <View style={styles.imageCounterContainer}>
@@ -419,10 +471,7 @@ export const HotelDetailsScreen = ({ navigation }) => {
               <View style={styles.locationLeft}>
                 <Ionicons name="location-outline" size={16} color="#6B7280" />
                 <Text style={styles.locationText} numberOfLines={1}>
-                  {distanceText
-                    ? `À ${distanceText} du ${searchParams.searchLocation?.description || localSearchLocation?.description || searchParams.placeName || 'centre-ville'}`
-                    : (hotel.city || fullAddress)
-                  }
+                  {distanceText || (hotel.city || fullAddress)}
                 </Text>
               </View>
               <View style={styles.ratingRight}>
@@ -460,9 +509,16 @@ export const HotelDetailsScreen = ({ navigation }) => {
 
             <View style={styles.bookingRow}>
               <Text style={styles.bookingLabel}>Prix <Text style={styles.bookingLabelSmall}>(à partir de)</Text></Text>
-              <Text style={styles.bookingPrice}>
-                {totalPrice > 0 ? totalPrice.toLocaleString('fr-FR', { minimumFractionDigits: 2 }) : '4.350,00'} {currency}
-              </Text>
+              <View>
+                {initialPrice && initialPrice > totalPrice && (
+                  <Text style={styles.originalPrice}>
+                    {initialPrice.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {currency}
+                  </Text>
+                )}
+                <Text style={styles.bookingPrice}>
+                  {totalPrice > 0 ? totalPrice.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '4.350,00'} {currency}
+                </Text>
+              </View>
             </View>
 
             <View style={styles.bookingRow}>
@@ -489,8 +545,10 @@ export const HotelDetailsScreen = ({ navigation }) => {
                   latitudeDelta: 0.02,
                   longitudeDelta: 0.02,
                 }}
-                scrollEnabled={true}
-                zoomEnabled={true}
+                scrollEnabled={false}
+                zoomEnabled={false}
+                loadingEnabled={true}
+                cacheEnabled={true}
               >
                 <Marker
                   coordinate={{
@@ -538,13 +596,7 @@ export const HotelDetailsScreen = ({ navigation }) => {
                 <RenderHTML
                   contentWidth={width - 72}
                   source={{ html: hotelDescriptionHtml }}
-                  tagsStyles={{
-                    p: { fontSize: 14, color: '#4B5563', lineHeight: 20, marginBottom: 8 },
-                    strong: { fontWeight: '700', color: '#111827' },
-                    ul: { paddingLeft: 16, marginBottom: 8 },
-                    li: { fontSize: 14, color: '#4B5563', lineHeight: 20, marginBottom: 4 },
-                    br: { marginBottom: 4 },
-                  }}
+                  tagsStyles={htmlTagsStyles}
                 />
               </View>
             </View>
@@ -552,13 +604,14 @@ export const HotelDetailsScreen = ({ navigation }) => {
 
 
           {/* Reviews */}
-          {
-            reviews && reviews.data && reviews.data.length > 0 && (
+          {hotel.reviewCount > 0 && (
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
                   <Text style={styles.sectionTitle}>Avis</Text>
-                  <TouchableOpacity onPress={() => setShowReviewsModal(true)}>
-                    <Text style={styles.seeAllText}>Lire les {reviews.total || reviews.data.length} avis</Text>
+                  <TouchableOpacity onPress={handleReadReviews} disabled={loadingReviews}>
+                    <Text style={styles.seeAllText}>
+                      {loadingReviews ? 'Chargement...' : `Lire les ${hotel.reviewCount.toLocaleString()} avis`}
+                    </Text>
                   </TouchableOpacity>
                 </View>
 
@@ -571,27 +624,33 @@ export const HotelDetailsScreen = ({ navigation }) => {
                       {hotel.rating >= 9 ? 'Excellent' : hotel.rating >= 8 ? 'Très bien' : hotel.rating >= 7 ? 'Bien' : hotel.rating >= 6 ? 'Agréable' : 'Correct'}
                     </Text>
                     <Text style={styles.reviewCount}>
-                      Basé sur {(reviews.total || hotel.reviewCount || 0).toLocaleString()} avis
+                      Basé sur {(hotel.reviewCount || 0).toLocaleString()} avis
                     </Text>
                   </View>
                 </View>
 
-                {/* Positive Highlights from Sentiment Analysis */}
-                {reviews.sentimentAnalysis?.pros && reviews.sentimentAnalysis.pros.length > 0 && (
-                  <>
-                    <Text style={styles.subSectionTitle}>Les éléments les plus appréciés</Text>
-                    <View style={styles.highlightsGrid}>
-                      {reviews.sentimentAnalysis.pros.slice(0, 6).map((pro, i) => (
-                        <View key={i} style={styles.highlightPill}>
-                          <Text style={styles.highlightText}>{pro}</Text>
+                {/* Positive Highlights from Sentiment Analysis - Use data from hotelDetails */}
+                {(() => {
+                  const pros = hotelDetails?.sentimentAnalysis?.pros;
+                  if (pros && pros.length > 0) {
+                    return (
+                      <>
+                        <Text style={styles.subSectionTitle}>Les éléments les plus appréciés</Text>
+                        <View style={styles.highlightsGrid}>
+                          {pros.slice(0, 6).map((pro, i) => (
+                            <View key={i} style={styles.highlightPill}>
+                              <Text style={styles.highlightText}>{pro}</Text>
+                            </View>
+                          ))}
                         </View>
-                      ))}
-                    </View>
-                  </>
-                )}
+                      </>
+                    );
+                  }
+                  return null;
+                })()}
 
-                {/* Guest Types from Reviews */}
-                {reviews.data && (() => {
+                {/* Guest Types from Reviews - Only show if reviews are loaded */}
+                {reviews?.data && (() => {
                   // Calculate guest type percentages from reviews
                   const typeCounts = {};
                   reviews.data.forEach(review => {
@@ -648,12 +707,12 @@ export const HotelDetailsScreen = ({ navigation }) => {
                   ) : null;
                 })()}
 
-                {/* Categories from Sentiment Analysis */}
-                {reviews.sentimentAnalysis?.categories && reviews.sentimentAnalysis.categories.length > 0 && (
+                {/* Categories from Sentiment Analysis - Use data from hotelDetails */}
+                {hotelDetails?.sentimentAnalysis?.categories && hotelDetails.sentimentAnalysis.categories.length > 0 && (
                   <>
                     <Text style={[styles.subSectionTitle, { marginTop: 24 }]}>Catégories d'avis</Text>
                     <View style={styles.categoriesGrid}>
-                      {reviews.sentimentAnalysis.categories.map((category, i) => {
+                      {hotelDetails.sentimentAnalysis.categories.map((category, i) => {
                         const rating = parseFloat(category.rating || 0);
                         const color = rating >= 8 ? '#10B981' : rating >= 6 ? '#F59E0B' : '#EF4444';
 
@@ -698,14 +757,7 @@ export const HotelDetailsScreen = ({ navigation }) => {
                       <RenderHTML
                         contentWidth={width - 80}
                         source={{ html: `<p>${itemHtml}</p>` }}
-                        tagsStyles={{
-                          p: {
-                            fontSize: 14,
-                            color: '#4B5563',
-                            lineHeight: 20,
-                            marginBottom: 6,
-                          },
-                        }}
+                        tagsStyles={itemHtmlTagsStyles}
                       />
                     </View>
                   </View>
@@ -907,7 +959,7 @@ export const HotelDetailsScreen = ({ navigation }) => {
                           {hotel.rating >= 9 ? 'Excellent' : hotel.rating >= 8 ? 'Très bien' : hotel.rating >= 7 ? 'Bien' : hotel.rating >= 6 ? 'Agréable' : 'Correct'}
                         </Text>
                         <Text style={styles.reviewsTotalText}>
-                          {(reviews?.total || reviews?.data?.length || 0).toLocaleString()} avis
+                          {(reviews?.total || reviews?.data?.length || hotel.reviewCount || 0).toLocaleString()} avis
                         </Text>
                       </View>
                     </View>
@@ -915,16 +967,17 @@ export const HotelDetailsScreen = ({ navigation }) => {
                 )}
 
                 {/* Loading State */}
-                {loading && !reviews && (
+                {loadingReviews && (
                   <View style={{ padding: 40, alignItems: 'center' }}>
-                    <Text style={{ fontSize: 16, color: '#6B7280' }}>Chargement des avis...</Text>
+                    <ActivityIndicator size="large" color="#E85D40" />
+                    <Text style={{ fontSize: 16, color: '#6B7280', marginTop: 12 }}>Chargement des avis...</Text>
                   </View>
                 )}
 
-                {/* Category Scores */}
-                {reviews?.sentimentAnalysis?.categories && reviews.sentimentAnalysis.categories.length > 0 && (
+                {/* Category Scores - Use data from hotelDetails */}
+                {hotelDetails?.sentimentAnalysis?.categories && hotelDetails.sentimentAnalysis.categories.length > 0 && (
                   <View style={styles.reviewsCategoriesSection}>
-                    {reviews.sentimentAnalysis.categories.slice(0, 6).map((category, i) => {
+                    {hotelDetails.sentimentAnalysis.categories.slice(0, 6).map((category, i) => {
                       const rating = parseFloat(category.rating || 0);
                       return (
                         <View key={i} style={styles.reviewsCategoryRow}>
@@ -1074,6 +1127,9 @@ const styles = StyleSheet.create({
   },
   slider: {
     flex: 1,
+  },
+  sliderImageContainer: {
+    width: width,
   },
   sliderImage: {
     width: width,

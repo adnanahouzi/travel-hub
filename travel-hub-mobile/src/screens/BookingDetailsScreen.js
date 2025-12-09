@@ -15,6 +15,8 @@ import {
 } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { format } from 'date-fns';
+import { fr } from 'date-fns/locale';
 import { ApiService } from '../services/api.service';
 
 const { width } = Dimensions.get('window');
@@ -23,7 +25,6 @@ export const BookingDetailsScreen = ({ route, navigation }) => {
     const { bookingId } = route.params;
     const [booking, setBooking] = useState(null);
     const [hotelDetails, setHotelDetails] = useState(null);
-    const [roomDetails, setRoomDetails] = useState(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -32,19 +33,14 @@ export const BookingDetailsScreen = ({ route, navigation }) => {
 
     const fetchData = async () => {
         try {
-            // 1. Fetch booking details
+            // Fetch booking details (now includes hotel information)
             const bookingResponse = await ApiService.getBooking(bookingId);
             const bookingData = bookingResponse.data;
             setBooking(bookingData);
 
-            // 2. Fetch hotel details if hotelId is available
-            if (bookingData.hotelId) {
-                const hotelResponse = await ApiService.getHotelDetails(bookingData.hotelId);
-                const hotelData = hotelResponse.data;
-                setHotelDetails(hotelData);
-
-
-
+            // Hotel details are now included in the booking response
+            if (bookingData.hotel) {
+                setHotelDetails(bookingData.hotel);
             }
         } catch (error) {
             console.error('Error fetching details:', error);
@@ -71,12 +67,71 @@ export const BookingDetailsScreen = ({ route, navigation }) => {
     }
 
     const room = booking.rooms && booking.rooms.length > 0 ? booking.rooms[0] : null;
-    // Use hotel image from details if available, else placeholder
-    const hotelImage = hotelDetails?.hotelImages && hotelDetails.hotelImages.length > 0
-        ? hotelDetails.hotelImages[0].url
-        : 'https://via.placeholder.com/400x200';
+    // Use hotel image from booking response (now includes hotel info)
+    const hotelImage = hotelDetails?.images && hotelDetails.images.length > 0
+        ? hotelDetails.images[0].url
+        : hotelDetails?.mainPhoto || hotelDetails?.thumbnail || 'https://via.placeholder.com/400x200';
 
+    // Format dates in French: "07 Décembre"
+    const formatDateFrench = (dateStr) => {
+        if (!dateStr) return '';
+        try {
+            const date = new Date(dateStr);
+            return format(date, 'dd MMMM', { locale: fr });
+        } catch (e) {
+            return dateStr;
+        }
+    };
 
+    // Format check-in/check-out times: "14h00 - 00h00"
+    const formatTimeRange = (timeFrom, timeTo) => {
+        if (!timeFrom && !timeTo) return '14h00 - 00h00';
+        const from = timeFrom || '14h00';
+        const to = timeTo || '00h00';
+        return `${from} - ${to}`;
+    };
+
+    const checkinDate = formatDateFrench(booking.checkin);
+    const checkoutDate = formatDateFrench(booking.checkout);
+    const checkinTime = formatTimeRange(
+        hotelDetails?.checkinCheckoutTimes?.checkinFrom,
+        hotelDetails?.checkinCheckoutTimes?.checkinTo
+    );
+    const checkoutTime = hotelDetails?.checkinCheckoutTimes?.checkout || '12h00';
+
+    // Format price: "4.359,00 DH"
+    const formatPrice = (price, currency) => {
+        if (!price) return `0,00 ${currency || 'DH'}`;
+        const numPrice = typeof price === 'string' ? parseFloat(price) : price;
+        return `${numPrice.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency || 'DH'}`;
+    };
+
+    const formattedPrice = formatPrice(booking.price, booking.currency);
+    const points = Math.round(booking.price * 0.1);
+
+    // Format date for payment: "Aujourd'hui, 11h45" or "07 Décembre, 11h45"
+    const formatPaymentDate = () => {
+        if (!booking.createdAt) return 'Date non disponible';
+        try {
+            const date = new Date(booking.createdAt);
+            const today = new Date();
+            const isToday = date.toDateString() === today.toDateString();
+            const timeStr = format(date, 'HH:mm', { locale: fr });
+            if (isToday) {
+                return `Aujourd'hui, ${timeStr}`;
+            }
+            return `${format(date, 'dd MMMM', { locale: fr })}, ${timeStr}`;
+        } catch (e) {
+            return 'Date non disponible';
+        }
+    };
+
+    // Build full address
+    const fullAddress = [
+        hotelDetails?.address,
+        hotelDetails?.city,
+        hotelDetails?.zip
+    ].filter(Boolean).join(', ');
 
     return (
         <SafeAreaView style={styles.container}>
@@ -88,87 +143,90 @@ export const BookingDetailsScreen = ({ route, navigation }) => {
                 <View style={{ width: 40 }} />
             </View>
 
-            <ScrollView contentContainerStyle={styles.scrollContent}>
-                {/* Hotel Image & Info */}
-                <View style={styles.hotelCard}>
+            <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+                {/* Hotel Image & Name Overlay */}
+                <View style={styles.hotelImageContainer}>
                     <Image
                         source={{ uri: hotelImage }}
                         style={styles.hotelImage}
+                        resizeMode="cover"
                     />
-                    <View style={styles.hotelInfoOverlay}>
+                    <View style={styles.hotelNameOverlay}>
                         <Text style={styles.hotelName}>{booking.hotelName}</Text>
-                        <View style={{ flexDirection: 'row' }}>
-                            {[...Array(hotelDetails?.starRating || 0)].map((_, i) => (
-                                <Ionicons key={i} name="star" size={16} color="#F59E0B" />
-                            ))}
-                        </View>
                     </View>
                 </View>
 
-                {/* Dates */}
+                {/* Check-in/Check-out Section */}
                 <View style={styles.section}>
-                    <View style={styles.dateRow}>
+                    <View style={styles.dateCard}>
                         <View style={styles.dateItem}>
                             <Ionicons name="time-outline" size={24} color="#6B7280" />
-                            <View style={styles.dateTextContainer}>
-                                <Text style={styles.dateLabel}>Arrivé</Text>
-                                <Text style={styles.dateValue}>{booking.checkin}</Text>
+                            <View style={styles.dateContent}>
+                                <Text style={styles.dateLabel}>Check in</Text>
+                                <Text style={styles.dateValue}>{checkinDate}</Text>
                             </View>
-                            <Text style={styles.timeValue}>
-                                {hotelDetails?.checkinCheckoutTimes?.checkin || '3:00 PM'}
-                            </Text>
+                            <Text style={styles.timeRange}>{checkinTime}</Text>
                         </View>
                         <View style={styles.dateDivider} />
                         <View style={styles.dateItem}>
                             <Ionicons name="time-outline" size={24} color="#6B7280" />
-                            <View style={styles.dateTextContainer}>
-                                <Text style={styles.dateLabel}>Départ</Text>
-                                <Text style={styles.dateValue}>{booking.checkout}</Text>
+                            <View style={styles.dateContent}>
+                                <Text style={styles.dateLabel}>Check out</Text>
+                                <Text style={styles.dateValue}>{checkoutDate}</Text>
                             </View>
-                            <Text style={styles.timeValue}>
-                                {hotelDetails?.checkinCheckoutTimes?.checkout || '12:00 PM'}
-                            </Text>
+                            <Text style={styles.timeRange}>{checkoutTime}</Text>
                         </View>
                     </View>
                 </View>
 
-                {/* Location */}
+                {/* Location Section */}
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Localisation</Text>
                     <View style={styles.mapContainer}>
-                        <MapView
-                            provider={PROVIDER_GOOGLE}
-                            style={styles.map}
-                            region={{
-                                latitude: parseFloat(hotelDetails?.location?.latitude) || 31.6295,
-                                longitude: parseFloat(hotelDetails?.location?.longitude) || -7.9811,
-                                latitudeDelta: 0.02,
-                                longitudeDelta: 0.02,
-                            }}
-                            scrollEnabled={true}
-                            zoomEnabled={true}
-                        >
-                            <Marker
-                                coordinate={{
-                                    latitude: parseFloat(hotelDetails?.location?.latitude) || 31.6295,
-                                    longitude: parseFloat(hotelDetails?.location?.longitude) || -7.9811,
+                        {hotelDetails?.location && (
+                            <MapView
+                                key={`map-${hotelDetails.location.latitude}-${hotelDetails.location.longitude}`}
+                                provider={PROVIDER_GOOGLE}
+                                style={styles.map}
+                                region={{
+                                    latitude: parseFloat(hotelDetails.location.latitude),
+                                    longitude: parseFloat(hotelDetails.location.longitude),
+                                    latitudeDelta: 0.02,
+                                    longitudeDelta: 0.02,
                                 }}
+                                scrollEnabled={false}
+                                zoomEnabled={false}
+                                loadingEnabled={true}
+                                cacheEnabled={true}
                             >
-                                <View style={styles.mapMarkerContainer}>
-                                    <Image
-                                        source={{ uri: hotelImage }}
-                                        style={styles.mapMarkerImage}
-                                    />
+                                <Marker
+                                    coordinate={{
+                                        latitude: parseFloat(hotelDetails.location.latitude),
+                                        longitude: parseFloat(hotelDetails.location.longitude),
+                                    }}
+                                >
+                                    <Ionicons name="location" size={32} color="#EF4444" />
+                                </Marker>
+                            </MapView>
+                        )}
+                        {/* Address overlay on map */}
+                        {fullAddress && (
+                            <View style={styles.mapAddressOverlay}>
+                                <Ionicons name="location" size={20} color="#EF4444" style={styles.mapPinIcon} />
+                                <View style={styles.mapAddressTextContainer}>
+                                    <Text style={styles.mapAddressText}>{fullAddress}</Text>
                                 </View>
-                            </Marker>
-                        </MapView>
+                            </View>
+                        )}
                         <TouchableOpacity
                             style={styles.expandMapButton}
                             onPress={() => {
                                 if (hotelDetails?.location?.latitude && hotelDetails?.location?.longitude) {
+                                    const lat = parseFloat(hotelDetails.location.latitude);
+                                    const lon = parseFloat(hotelDetails.location.longitude);
                                     const url = Platform.OS === 'ios'
-                                        ? `maps:0,0?q=${hotelDetails.location.latitude},${hotelDetails.location.longitude}`
-                                        : `geo:0,0?q=${hotelDetails.location.latitude},${hotelDetails.location.longitude}`;
+                                        ? `maps:0,0?q=${lat},${lon}`
+                                        : `geo:0,0?q=${lat},${lon}`;
                                     Linking.openURL(url);
                                 }
                             }}
@@ -178,8 +236,41 @@ export const BookingDetailsScreen = ({ route, navigation }) => {
                     </View>
                 </View>
 
+                {/* Rooms Section */}
+                {room && (
+                    <View style={styles.section}>
+                        <Text style={styles.sectionTitle}>Chambres</Text>
+                        <View style={styles.roomCard}>
+                            <Image
+                                source={{ uri: hotelImage }}
+                                style={styles.roomImage}
+                                resizeMode="cover"
+                            />
+                            <View style={styles.roomInfo}>
+                                <Text style={styles.roomId}>ID : {room.roomId || '946169146'}</Text>
+                                <Text style={styles.roomName}>
+                                    {room.roomName || '1 x Chambre Supérieure, 1 grand lit'}
+                                </Text>
+                                <View style={styles.roomDetailsRow}>
+                                    <Ionicons name="bed-outline" size={16} color="#6B7280" />
+                                    <Text style={styles.roomDetailText}>2 personnes</Text>
+                                </View>
+                                <View style={styles.roomDetailsRow}>
+                                    <Ionicons name="home-outline" size={16} color="#6B7280" />
+                                    <Text style={styles.roomDetailText}>30 m²</Text>
+                                </View>
+                                <View style={styles.cancellationRow}>
+                                    <Ionicons name="information-circle-outline" size={16} color="#6B7280" />
+                                    <Text style={styles.cancellationText}>
+                                        Annulation gratuite avant le {formatDateFrench(booking.checkin)}
+                                    </Text>
+                                </View>
+                            </View>
+                        </View>
+                    </View>
+                )}
 
-                {/* Payments */}
+                {/* Payments Section */}
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Paiements</Text>
                     <View style={styles.paymentCard}>
@@ -190,18 +281,12 @@ export const BookingDetailsScreen = ({ route, navigation }) => {
                             <View style={styles.paymentInfo}>
                                 <Text style={styles.paymentLabel}>Points gagnés</Text>
                                 <Text style={styles.paymentSubtext}>
-                                    {booking.createdAt ? (() => {
-                                        const date = new Date(booking.createdAt);
-                                        const today = new Date();
-                                        const isToday = date.toDateString() === today.toDateString();
-                                        const timeStr = date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-                                        return isToday ? `Aujourd'hui, ${timeStr}` : date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' }) + `, ${timeStr}`;
-                                    })() : 'Date non disponible'}
+                                    La mise à jour de votre solde de points s'effectue après la confirmation définitive.
                                 </Text>
                             </View>
                             <View style={styles.pointsBadge}>
                                 <Ionicons name="flash" size={16} color="#FFF" />
-                                <Text style={styles.pointsValue}>{Math.round(booking.price * 0.1)}</Text>
+                                <Text style={styles.pointsValue}>{points}</Text>
                             </View>
                         </View>
                         <View style={styles.divider} />
@@ -211,49 +296,38 @@ export const BookingDetailsScreen = ({ route, navigation }) => {
                             </View>
                             <View style={styles.paymentInfo}>
                                 <Text style={styles.paymentLabel}>Montant payé</Text>
-                                <Text style={styles.paymentSubtext}>
-                                    {booking.createdAt ? (() => {
-                                        const date = new Date(booking.createdAt);
-                                        const today = new Date();
-                                        const isToday = date.toDateString() === today.toDateString();
-                                        const timeStr = date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-                                        return isToday ? `Aujourd'hui, ${timeStr}` : date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' }) + `, ${timeStr}`;
-                                    })() : 'Date non disponible'}
-                                </Text>
+                                <Text style={styles.paymentSubtext}>{formatPaymentDate()}</Text>
                             </View>
-                            <Text style={styles.amountValue}>{booking.price} {booking.currency}</Text>
+                            <Text style={styles.amountValue}>{formattedPrice}</Text>
                         </View>
                     </View>
                 </View>
 
-                {/* Contact Property - Only show if phone exists */}
-                {hotelDetails?.phone && (
-                    <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Contacter la propriété</Text>
-                        <TouchableOpacity
-                            style={styles.contactCard}
-                            onPress={() => {
-                                const phoneNumber = hotelDetails.phone;
-                                // Remove spaces and special characters except +
-                                const cleanedPhone = phoneNumber.replace(/[^\d+]/g, '');
-                                Linking.openURL(`tel:${cleanedPhone}`);
-                            }}
-                        >
-                            <View style={styles.contactIconContainer}>
-                                <Ionicons name="call-outline" size={24} color="#6B7280" />
-                            </View>
-                            <View style={styles.contactInfo}>
-                                <Text style={styles.contactLabel}>Appeler</Text>
-                                <Text style={styles.contactSubtext}>
-                                    {hotelDetails.phone}
-                                </Text>
-                            </View>
-                            <Ionicons name="call-outline" size={24} color="#E85D40" />
-                        </TouchableOpacity>
-                    </View>
-                )}
+                {/* Contact Section */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Contacter l'établissement</Text>
+                    <TouchableOpacity
+                        style={styles.contactCard}
+                        onPress={() => {
+                            const phoneNumber = hotelDetails?.phone || '+212 6 00 000000';
+                            const cleanedPhone = phoneNumber.replace(/[^\d+]/g, '');
+                            Linking.openURL(`tel:${cleanedPhone}`);
+                        }}
+                    >
+                        <View style={styles.contactIconContainer}>
+                            <Ionicons name="call-outline" size={24} color="#6B7280" />
+                        </View>
+                        <View style={styles.contactInfo}>
+                            <Text style={styles.contactLabel}>Appeler le Centre de Relation Client, disponible 24/7</Text>
+                            <Text style={styles.contactSubtext}>
+                                {hotelDetails?.phone || '+212 6 00 000000'}
+                            </Text>
+                        </View>
+                        <Ionicons name="call-outline" size={24} color="#E85D40" />
+                    </TouchableOpacity>
+                </View>
 
-                {/* Manage Reservation */}
+                {/* Manage Reservation Section */}
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Gérer la réservation</Text>
                     <View style={styles.manageCard}>
@@ -291,7 +365,7 @@ export const BookingDetailsScreen = ({ route, navigation }) => {
                     </View>
                 </View>
 
-                {/* Property Details */}
+                {/* Property Details Section */}
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Détails de la propriété</Text>
                     <View style={styles.manageCard}>
@@ -369,33 +443,29 @@ const styles = StyleSheet.create({
     scrollContent: {
         paddingBottom: 40,
     },
-    hotelCard: {
-        margin: 16,
-        borderRadius: 16,
-        overflow: 'hidden',
-        backgroundColor: '#FFF',
-        elevation: 2,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
+    // Hotel Image Section
+    hotelImageContainer: {
+        width: '100%',
+        height: 200,
+        position: 'relative',
     },
     hotelImage: {
         width: '100%',
-        height: 150,
+        height: '100%',
     },
-    hotelInfoOverlay: {
+    hotelNameOverlay: {
         position: 'absolute',
         bottom: 0,
         left: 0,
-        right: 0,
         padding: 16,
-        backgroundColor: 'rgba(0,0,0,0.4)',
     },
     hotelName: {
         color: '#FFF',
-        fontSize: 20,
+        fontSize: 24,
         fontWeight: '700',
+        textShadowColor: 'rgba(0, 0, 0, 0.5)',
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 3,
     },
     section: {
         marginBottom: 24,
@@ -407,67 +477,79 @@ const styles = StyleSheet.create({
         color: '#1F2937',
         marginBottom: 12,
     },
-    dateRow: {
-        flexDirection: 'row',
+    // Date Section
+    dateCard: {
         backgroundColor: '#FFF',
         borderRadius: 16,
         padding: 16,
-        alignItems: 'center',
     },
     dateItem: {
-        flex: 1,
-        alignItems: 'flex-start',
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 12,
     },
-    dateTextContainer: {
-        marginTop: 8,
-        marginBottom: 4,
+    dateContent: {
+        flex: 1,
+        marginLeft: 12,
     },
     dateLabel: {
         fontSize: 12,
         color: '#9CA3AF',
+        marginBottom: 4,
+        textTransform: 'uppercase',
     },
     dateValue: {
         fontSize: 16,
         fontWeight: '600',
         color: '#1F2937',
     },
-    timeValue: {
-        fontSize: 12,
+    timeRange: {
+        fontSize: 14,
         color: '#6B7280',
+        fontWeight: '500',
     },
     dateDivider: {
         width: 1,
-        height: '80%',
+        height: 40,
         backgroundColor: '#E5E7EB',
-        marginHorizontal: 16,
+        marginLeft: 36,
+        marginVertical: 8,
+        borderStyle: 'dashed',
     },
+    // Map Section
     mapContainer: {
         height: 200,
         borderRadius: 16,
         overflow: 'hidden',
         position: 'relative',
-        marginBottom: 16,
+        backgroundColor: '#E5E7EB',
     },
     map: {
         width: '100%',
         height: '100%',
     },
-    mapMarkerContainer: {
-        width: 50,
-        height: 50,
-        borderRadius: 25,
-        overflow: 'hidden',
-        borderWidth: 3,
-        borderColor: '#FFF',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.3,
-        shadowRadius: 4,
-        elevation: 5,
+    mapAddressOverlay: {
+        position: 'absolute',
+        left: 12,
+        top: 12,
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(0, 0, 0, 0.6)',
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 8,
+        maxWidth: width - 100,
     },
-    mapMarkerImage: {
-        width: '100%',
-        height: '100%',
+    mapPinIcon: {
+        marginRight: 8,
+    },
+    mapAddressTextContainer: {
+        flex: 1,
+    },
+    mapAddressText: {
+        color: '#FFF',
+        fontSize: 13,
+        fontWeight: '500',
     },
     expandMapButton: {
         position: 'absolute',
@@ -485,20 +567,26 @@ const styles = StyleSheet.create({
         shadowRadius: 4,
         elevation: 5,
     },
+    // Room Section
     roomCard: {
         backgroundColor: '#FFF',
         borderRadius: 16,
         padding: 16,
         flexDirection: 'row',
     },
-
+    roomImage: {
+        width: 100,
+        height: 100,
+        borderRadius: 12,
+        marginRight: 16,
+    },
     roomInfo: {
         flex: 1,
     },
     roomId: {
         fontSize: 12,
         color: '#9CA3AF',
-        marginBottom: 4,
+        marginBottom: 6,
     },
     roomName: {
         fontSize: 16,
@@ -509,23 +597,25 @@ const styles = StyleSheet.create({
     roomDetailsRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 8,
+        marginBottom: 6,
     },
     roomDetailText: {
-        fontSize: 12,
+        fontSize: 14,
         color: '#6B7280',
-        marginLeft: 4,
+        marginLeft: 8,
     },
     cancellationRow: {
         flexDirection: 'row',
-        alignItems: 'center',
+        alignItems: 'flex-start',
+        marginTop: 8,
     },
     cancellationText: {
-        fontSize: 12,
+        fontSize: 13,
         color: '#6B7280',
-        marginLeft: 4,
+        marginLeft: 8,
         flex: 1,
     },
+    // Payment Section
     paymentCard: {
         backgroundColor: '#FFF',
         borderRadius: 16,
@@ -552,6 +642,7 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: '600',
         color: '#1F2937',
+        marginBottom: 4,
     },
     paymentSubtext: {
         fontSize: 12,
@@ -563,11 +654,12 @@ const styles = StyleSheet.create({
         backgroundColor: '#F59E0B',
         paddingHorizontal: 12,
         paddingVertical: 6,
-        borderRadius: 12,
+        borderRadius: 20,
     },
     pointsValue: {
         color: '#FFF',
         fontWeight: '700',
+        fontSize: 14,
         marginLeft: 4,
     },
     amountValue: {
@@ -579,6 +671,7 @@ const styles = StyleSheet.create({
         height: 1,
         backgroundColor: '#E5E7EB',
     },
+    // Contact Section
     contactCard: {
         backgroundColor: '#FFF',
         borderRadius: 16,
@@ -602,11 +695,13 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: '600',
         color: '#1F2937',
+        marginBottom: 4,
     },
     contactSubtext: {
         fontSize: 14,
         color: '#6B7280',
     },
+    // Manage Section
     manageCard: {
         backgroundColor: '#FFF',
         borderRadius: 16,
@@ -631,6 +726,7 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: '#1F2937',
     },
+    // Bottom Buttons
     bottomButtons: {
         padding: 16,
         alignItems: 'center',

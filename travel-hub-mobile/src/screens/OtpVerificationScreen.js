@@ -48,9 +48,6 @@ export const OtpVerificationScreen = ({ route, navigation }) => {
             // Call submit booking endpoint
             const response = await ApiService.submitBooking(bookingData);
 
-
-            console.log('Booking ID:', response.data?.bookingId);
-
             // Navigate to Success Screen
             navigation.navigate('BookingSuccess', {
                 totalAmount: totalAmount,

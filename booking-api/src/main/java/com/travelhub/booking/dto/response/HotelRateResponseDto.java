@@ -68,6 +68,9 @@ public class HotelRateResponseDto {
     @Schema(description = "Grouped rates by room configuration")
     private List<RoomConfigurationGroupDto> groupedRates;
 
+    @Schema(description = "Sentiment analysis from reviews")
+    private SentimentAnalysisDto sentimentAnalysis;
+
     // Getters and Setters
 
     public String getHotelId() {
@@ -228,5 +231,13 @@ public class HotelRateResponseDto {
 
     public void setGroupedRates(List<RoomConfigurationGroupDto> groupedRates) {
         this.groupedRates = groupedRates;
+    }
+
+    public SentimentAnalysisDto getSentimentAnalysis() {
+        return sentimentAnalysis;
+    }
+
+    public void setSentimentAnalysis(SentimentAnalysisDto sentimentAnalysis) {
+        this.sentimentAnalysis = sentimentAnalysis;
     }
 }

@@ -2,21 +2,20 @@ package com.travelhub.booking.dto.response;
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.UUID;
 
 public class BatchPrebookResponseDto {
-    private UUID simulationId;
+    private String simulationId;
     private List<PrebookResponseDto> responses;
     private BigDecimal totalAmount;
     private BigDecimal totalIncludedTaxes;
     private BigDecimal totalExcludedTaxes;
     private String currency;
 
-    public UUID getSimulationId() {
+    public String getSimulationId() {
         return simulationId;
     }
 
-    public void setSimulationId(UUID simulationId) {
+    public void setSimulationId(String simulationId) {
         this.simulationId = simulationId;
     }
 

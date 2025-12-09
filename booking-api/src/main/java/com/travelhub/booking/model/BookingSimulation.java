@@ -1,18 +1,19 @@
 package com.travelhub.booking.model;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.GenericGenerator;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.UUID;
 
 @Entity
 @Table(name = "booking_simulations")
 public class BookingSimulation {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id;
+    @GeneratedValue(generator = "UUID")
+    @GenericGenerator(name = "UUID", strategy = "org.hibernate.id.UUIDGenerator")
+    private String id;
 
     @ElementCollection
     @CollectionTable(name = "simulation_prebook_ids", joinColumns = @JoinColumn(name = "simulation_id"))
@@ -56,11 +57,11 @@ public class BookingSimulation {
 
     // Getters and Setters
 
-    public UUID getId() {
+    public String getId() {
         return id;
     }
 
-    public void setId(UUID id) {
+    public void setId(String id) {
         this.id = id;
     }
 

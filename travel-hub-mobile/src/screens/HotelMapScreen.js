@@ -126,8 +126,9 @@ export const HotelMapScreen = ({ navigation }) => {
             >
                 {filteredHotels.map((hotel) => {
                     const firstRoomType = hotel.roomTypes?.[0];
-                    const totalPrice = firstRoomType?.suggestedSellingPrice?.amount || 0;
-                    const currency = firstRoomType?.suggestedSellingPrice?.currency || 'DH';
+                    // Use offerRetailRate as promotional price
+                    const totalPrice = firstRoomType?.offerRetailRate?.amount || 0;
+                    const currency = firstRoomType?.offerRetailRate?.currency || 'DH';
                     const isSelected = selectedHotel?.hotelId === hotel.hotelId;
 
                     return (
@@ -326,7 +327,7 @@ export const HotelMapScreen = ({ navigation }) => {
                                 <View style={styles.priceRow}>
                                     <Text style={styles.priceLabel}>Prix (à partir de)</Text>
                                     <Text style={styles.price}>
-                                        {(selectedHotel.roomTypes?.[0]?.suggestedSellingPrice?.amount || 0).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} {selectedHotel.roomTypes?.[0]?.suggestedSellingPrice?.currency || 'DH'}
+                                        {(selectedHotel.roomTypes?.[0]?.offerRetailRate?.amount || 0).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} {selectedHotel.roomTypes?.[0]?.offerRetailRate?.currency || 'DH'}
                                     </Text>
                                 </View>
 

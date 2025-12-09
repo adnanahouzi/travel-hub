@@ -610,6 +610,20 @@ export const SearchScreen = ({ navigation }) => {
               
               {roomsConfig.map((room, roomIndex) => (
                 <View key={roomIndex} style={styles.roomConfigSection}>
+                  {/* Room Header with Remove Button */}
+                  <View style={styles.roomHeader}>
+                    <Text style={styles.roomTitle}>Chambre {roomIndex + 1}</Text>
+                    {roomsConfig.length > 1 && (
+                      <TouchableOpacity
+                        style={styles.removeRoomButton}
+                        onPress={() => removeRoom(roomIndex)}
+                      >
+                        <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                        <Text style={styles.removeRoomText}>Supprimer</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+
                   {/* Adults Row */}
                   <View style={styles.roomConfigRow}>
                     <View style={styles.roomConfigLabelContainer}>

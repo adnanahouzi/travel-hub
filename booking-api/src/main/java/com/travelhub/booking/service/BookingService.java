@@ -17,5 +17,5 @@ public interface BookingService {
 
     BookResponseDto getBooking(String bookingId);
 
-    BookingListResponseDto listBookings(String guestId, String clientReference);
+    BookingListResponseDto listBookings();
 }

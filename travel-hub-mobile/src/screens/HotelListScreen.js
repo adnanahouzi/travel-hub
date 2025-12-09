@@ -100,8 +100,10 @@ export const HotelListScreen = ({ navigation }) => {
   const renderHotelCard = ({ item }) => {
     const firstRoomType = item.roomTypes?.[0];
     const firstRate = firstRoomType?.rates?.[0];
-    const totalPrice = firstRoomType?.suggestedSellingPrice.amount || 0;
-    const currency = firstRoomType?.suggestedSellingPrice.currency || 'DH';
+    // Use offerRetailRate as promotional price (to display)
+    const totalPrice = firstRoomType?.offerRetailRate?.amount || 0;
+    const currency = firstRoomType?.offerRetailRate?.currency || 'DH';
+    // Use offerInitialPrice to show promotion (strike through if higher)
     const initialPrice = firstRoomType?.offerInitialPrice?.amount;
 
     // Points calculation (10% of price)

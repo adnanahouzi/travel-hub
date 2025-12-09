@@ -232,8 +232,9 @@ export const BookingSummaryScreen = ({ navigation, route }) => {
           return roomType.rates?.map((rate, rateIndex) => {
             if (!rate) return null;
 
-            const ratePrice = rate.retailRate?.suggestedSellingPrice?.[0]?.amount || 0;
-            const rateCurrency = rate.retailRate?.suggestedSellingPrice?.[0]?.currency || 'MAD';
+            // Use offerRetailRate (mapped to total) instead of suggestedSellingPrice
+            const ratePrice = rate.retailRate?.total?.[0]?.amount || 0;
+            const rateCurrency = rate.retailRate?.total?.[0]?.currency || 'MAD';
 
             // Calculate taxes per rate from taxesAndFees
             let rateIncludedTaxes = 0;

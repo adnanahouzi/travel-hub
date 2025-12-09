@@ -1,19 +1,20 @@
 package com.travelhub.booking.model;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.GenericGenerator;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 @Entity
 @Table(name = "bookings")
 public class Booking {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id;
+    @GeneratedValue(generator = "UUID")
+    @GenericGenerator(name = "UUID", strategy = "org.hibernate.id.UUIDGenerator")
+    private String id;
 
     @Column(nullable = false)
     private String holderFirstName;
@@ -28,7 +29,7 @@ public class Booking {
     private String holderPhone;
 
     @Column(nullable = false)
-    private UUID simulationId;
+    private String simulationId;
 
     @Column(nullable = false, length = 16)
     private String bankingAccount;
@@ -99,11 +100,11 @@ public class Booking {
 
     // Getters and Setters
 
-    public UUID getId() {
+    public String getId() {
         return id;
     }
 
-    public void setId(UUID id) {
+    public void setId(String id) {
         this.id = id;
     }
 
@@ -139,11 +140,11 @@ public class Booking {
         this.holderPhone = holderPhone;
     }
 
-    public UUID getSimulationId() {
+    public String getSimulationId() {
         return simulationId;
     }
 
-    public void setSimulationId(UUID simulationId) {
+    public void setSimulationId(String simulationId) {
         this.simulationId = simulationId;
     }
 

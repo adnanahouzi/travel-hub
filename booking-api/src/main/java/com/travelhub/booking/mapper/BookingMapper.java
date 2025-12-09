@@ -3,6 +3,7 @@ package com.travelhub.booking.mapper;
 import com.travelhub.booking.dto.request.RateSearchRequestDto;
 import com.travelhub.booking.dto.response.*;
 import com.travelhub.booking.dto.response.BookResponseDto;
+import com.travelhub.booking.model.Booking;
 import com.travelhub.connectors.nuitee.dto.common.Price;
 import com.travelhub.connectors.nuitee.dto.request.HotelRatesRequest;
 import com.travelhub.connectors.nuitee.dto.request.BookRequest;
@@ -80,6 +81,20 @@ public class BookingMapper {
         response.setPhone(hotelData.getPhone());
         response.setEmail(hotelData.getEmail());
         response.setCheckinCheckoutTimes(toCheckinCheckoutTimesDto(hotelData.getCheckinCheckoutTimes()));
+        
+        // Map sentiment analysis from HotelData
+        if (hotelData.getSentimentAnalysis() != null) {
+            SentimentAnalysisDto sentimentDto = toSentimentAnalysisDto(hotelData.getSentimentAnalysis());
+            response.setSentimentAnalysis(sentimentDto);
+            // Log for debugging
+            System.out.println("Mapped sentimentAnalysis - pros: " + 
+                (sentimentDto != null && sentimentDto.getPros() != null ? sentimentDto.getPros().size() : 0) + 
+                " items, categories: " + 
+                (sentimentDto != null && sentimentDto.getCategories() != null ? sentimentDto.getCategories().size() : 0) + 
+                " items");
+        } else {
+            System.out.println("No sentimentAnalysis found in HotelData");
+        }
 
         // Group rates by offerId with room breakdown, then by configuration
         List<GroupedRateDto> offers = groupByOffer(roomTypes, hotelData.getRooms());
@@ -834,13 +849,14 @@ public class BookingMapper {
         return dto;
     }
 
-    public BookRequest toBookRequest(BookingInitiationRequestDto requestDto, String prebookId) {
+    public BookRequest toBookRequest(BookingInitiationRequestDto requestDto, String prebookId, String clientReference) {
         if (requestDto == null) {
             return null;
         }
 
         BookRequest request = new BookRequest();
         request.setPrebookId(prebookId);
+        request.setClientReference(clientReference);
 
         // Map Holder to Guest (single guest for now)
         BookRequest.Guest guest = new BookRequest.Guest();
@@ -856,8 +872,6 @@ public class BookingMapper {
         // Map Payment
         BookRequest.Payment payment = new BookRequest.Payment();
         payment.setMethod("CREDIT");
-        // payment.setTransactionId(requestDto.getBankingAccount()); // Not needed for
-        // CREDIT
 
         request.setPayment(payment);
 
@@ -987,6 +1001,111 @@ public class BookingMapper {
         dto.setAdults(room.getAdults());
         dto.setAmount(room.getAmount());
         dto.setCurrency(room.getCurrency());
+        return dto;
+    }
+
+    /**
+     * Merges Booking entity data with Nuitee API response data.
+     * Booking entity data takes precedence for fields that exist in both sources.
+     */
+    public BookingListResponseDto.BookingDataDto mergeBookingEntityData(
+            BookingListResponseDto.BookingDataDto nuiteeDto,
+            Booking bookingEntity) {
+        if (nuiteeDto == null && bookingEntity == null) {
+            return null;
+        }
+
+        BookingListResponseDto.BookingDataDto mergedDto;
+        if (nuiteeDto != null) {
+            mergedDto = nuiteeDto;
+        } else {
+            mergedDto = new BookingListResponseDto.BookingDataDto();
+        }
+
+        // Merge Booking entity data (takes precedence)
+        if (bookingEntity != null) {
+            // Set clientReference from booking entity ID
+            mergedDto.setClientReference(bookingEntity.getId());
+            
+            // Override with booking entity data if available
+            if (bookingEntity.getStatus() != null) {
+                mergedDto.setStatus(bookingEntity.getStatus());
+            }
+            if (bookingEntity.getCheckin() != null) {
+                mergedDto.setCheckin(bookingEntity.getCheckin());
+            }
+            if (bookingEntity.getCheckout() != null) {
+                mergedDto.setCheckout(bookingEntity.getCheckout());
+            }
+            if (bookingEntity.getPrice() != null) {
+                mergedDto.setPrice(bookingEntity.getPrice());
+            }
+            if (bookingEntity.getCurrency() != null) {
+                mergedDto.setCurrency(bookingEntity.getCurrency());
+            }
+            if (bookingEntity.getBookingId() != null) {
+                mergedDto.setBookingId(bookingEntity.getBookingId());
+            }
+
+            // Set additional Booking entity fields
+            mergedDto.setHolderFirstName(bookingEntity.getHolderFirstName());
+            mergedDto.setHolderLastName(bookingEntity.getHolderLastName());
+            mergedDto.setHolderEmail(bookingEntity.getHolderEmail());
+            mergedDto.setHolderPhone(bookingEntity.getHolderPhone());
+            mergedDto.setSimulationId(bookingEntity.getSimulationId());
+            mergedDto.setBankingAccount(bookingEntity.getBankingAccount());
+            mergedDto.setConfirmationCode(bookingEntity.getConfirmationCode());
+            mergedDto.setHotelConfirmationCode(bookingEntity.getHotelConfirmationCode());
+            mergedDto.setReference(bookingEntity.getReference());
+            mergedDto.setHotelId(bookingEntity.getHotelId());
+            mergedDto.setHotelName(bookingEntity.getHotelName());
+            mergedDto.setGuestLevel(bookingEntity.getGuestLevel());
+            mergedDto.setSandbox(bookingEntity.getSandbox());
+            mergedDto.setCreatedAt(bookingEntity.getCreatedAt());
+            mergedDto.setUpdatedAt(bookingEntity.getUpdatedAt());
+
+            // Update hotel info if hotelId or hotelName is available from entity
+            if (bookingEntity.getHotelId() != null || bookingEntity.getHotelName() != null) {
+                BookingListResponseDto.HotelInfoDto hotelDto = mergedDto.getHotel();
+                if (hotelDto == null) {
+                    hotelDto = new BookingListResponseDto.HotelInfoDto();
+                    mergedDto.setHotel(hotelDto);
+                }
+                if (bookingEntity.getHotelId() != null) {
+                    hotelDto.setHotelId(bookingEntity.getHotelId());
+                }
+                if (bookingEntity.getHotelName() != null) {
+                    hotelDto.setName(bookingEntity.getHotelName());
+                }
+            }
+        }
+
+        return mergedDto;
+    }
+
+    public BookResponseDto.HotelInfoDto toHotelInfoDto(
+            com.travelhub.connectors.nuitee.dto.response.HotelData hotelData) {
+        if (hotelData == null) {
+            return null;
+        }
+
+        BookResponseDto.HotelInfoDto dto = new BookResponseDto.HotelInfoDto();
+        dto.setHotelId(hotelData.getId());
+        dto.setName(hotelData.getName());
+        dto.setMainPhoto(hotelData.getMainPhoto());
+        dto.setThumbnail(hotelData.getThumbnail());
+        dto.setAddress(hotelData.getAddress());
+        dto.setCity(hotelData.getCity());
+        dto.setCountry(hotelData.getCountry());
+        dto.setZip(hotelData.getZip());
+        dto.setStarRating(hotelData.getStarRating());
+        dto.setRating(hotelData.getRating());
+        dto.setReviewCount(hotelData.getReviewCount());
+        dto.setLocation(toLocationDto(hotelData.getLocation()));
+        dto.setCheckinCheckoutTimes(toCheckinCheckoutTimesDto(hotelData.getCheckinCheckoutTimes()));
+        dto.setPhone(hotelData.getPhone());
+        dto.setEmail(hotelData.getEmail());
+        dto.setImages(toHotelImageDtos(hotelData.getHotelImages()));
         return dto;
     }
 }

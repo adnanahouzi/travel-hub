@@ -11,6 +11,7 @@ import com.travelhub.booking.model.BookingSimulation;
 import com.travelhub.booking.repository.BookingRepository;
 import com.travelhub.booking.repository.BookingSimulationRepository;
 import com.travelhub.booking.service.BookingService;
+import com.travelhub.booking.service.HotelDataService;
 import com.travelhub.connectors.nuitee.NuiteeApiClient;
 import com.travelhub.connectors.nuitee.dto.request.BookRequest;
 import com.travelhub.connectors.nuitee.dto.request.PrebookRequest;
@@ -21,6 +22,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -31,13 +33,16 @@ public class BookingServiceImpl implements BookingService {
     private final BookingMapper bookingMapper;
     private final BookingRepository bookingRepository;
     private final BookingSimulationRepository bookingSimulationRepository;
+    private final HotelDataService hotelDataService;
 
     public BookingServiceImpl(NuiteeApiClient nuiteeApiClient, BookingMapper bookingMapper,
-            BookingRepository bookingRepository, BookingSimulationRepository bookingSimulationRepository) {
+            BookingRepository bookingRepository, BookingSimulationRepository bookingSimulationRepository,
+            HotelDataService hotelDataService) {
         this.nuiteeApiClient = nuiteeApiClient;
         this.bookingMapper = bookingMapper;
         this.bookingRepository = bookingRepository;
         this.bookingSimulationRepository = bookingSimulationRepository;
+        this.hotelDataService = hotelDataService;
     }
 
     @Override
@@ -154,19 +159,19 @@ public class BookingServiceImpl implements BookingService {
             String prebookId = simulation.getConnectorPrebookIds().get(0);
 
             // Map to connector request
-            BookRequest bookRequest = bookingMapper.toBookRequest(request, prebookId);
+            BookRequest bookRequest = bookingMapper.toBookRequest(request, prebookId, savedBooking.getId());
 
             // Call connector
             BookResponse connectorResponse = nuiteeApiClient.book(bookRequest);
 
             // Update booking with success details
             if (connectorResponse != null && connectorResponse.getData() != null
-                    && connectorResponse.getData().getStatus().equals("CONFIRMED")) {
-                BookResponse.BookData data = connectorResponse.getData();
+                    && "CONFIRMED".equals(connectorResponse.getData().getStatus())) {
 
+                BookResponse.BookData data = connectorResponse.getData();
                 // Set basic booking IDs and status
                 savedBooking.setBookingId(data.getBookingId());
-                savedBooking.setStatus("CONFIRMED");
+                savedBooking.setStatus(connectorResponse.getData().getStatus());
                 savedBooking.setConfirmationCode(data.getStatus());
 
                 // Set complete booking data from connector response
@@ -214,6 +219,12 @@ public class BookingServiceImpl implements BookingService {
 
                 // Return the connector response as DTO
                 return bookingMapper.toBookResponseDto(connectorResponse);
+            } else if (connectorResponse != null && connectorResponse.getData() != null
+                    && !"CONFIRMED".equals(connectorResponse.getData().getStatus())) {
+                logger.warn("Received failed status from connector for booking: {}", savedBooking.getId());
+                savedBooking.setStatus(connectorResponse.getData().getStatus());
+                bookingRepository.save(savedBooking);
+                throw new RuntimeException("Booking confirmation failed");
             } else {
                 logger.warn("Received empty response from connector for booking: {}", savedBooking.getId());
                 savedBooking.setStatus("FAILED");
@@ -232,17 +243,151 @@ public class BookingServiceImpl implements BookingService {
     @Override
     public BookResponseDto getBooking(String bookingId) {
         logger.info("Retrieving booking details for bookingId: {}", bookingId);
-        com.travelhub.connectors.nuitee.dto.response.BookResponse connectorResponse = nuiteeApiClient
+        BookResponse connectorResponse = nuiteeApiClient
                 .getBooking(bookingId);
-        return bookingMapper.toBookResponseDto(connectorResponse);
+        BookResponseDto dto = bookingMapper.toBookResponseDto(connectorResponse);
+
+        // Enrich with hotel details if hotelId is available
+        if (dto != null && dto.getData() != null && dto.getData().getHotelId() != null) {
+            try {
+                String hotelId = dto.getData().getHotelId();
+                logger.info("Fetching hotel details for hotelId: {}", hotelId);
+                var hotelDetailsResponse = hotelDataService.getHotelDetails(hotelId, "fr");
+                if (hotelDetailsResponse != null && hotelDetailsResponse.getData() != null) {
+                    var hotelData = hotelDetailsResponse.getData();
+                    BookResponseDto.HotelInfoDto hotelInfo = bookingMapper.toHotelInfoDto(hotelData);
+                    dto.getData().setHotel(hotelInfo);
+                }
+            } catch (Exception e) {
+                logger.warn("Failed to fetch hotel details for booking: {}", e.getMessage());
+                // Continue without hotel details - booking info is still available
+            }
+        }
+
+        return dto;
     }
 
     @Override
-    public BookingListResponseDto listBookings(String guestId,
-            String clientReference) {
-        logger.info("Listing bookings - guestId: {}, clientReference: {}", guestId, clientReference);
-        BookingListResponse connectorResponse = nuiteeApiClient
-                .listBookings(guestId, clientReference);
-        return bookingMapper.toBookingListResponseDto(connectorResponse);
+    public BookingListResponseDto listBookings() {
+        logger.info("Listing bookings for connected user");
+
+        // Search bookings in database
+        List<Booking> bookings = bookingRepository.findAll();
+        logger.info("Found {} bookings in database", bookings.size());
+
+        // Aggregate all booking data from Nuitee API
+        // Note: Each clientReference returns exactly one booking from LiteAPI
+        List<BookingListResponseDto.BookingDataDto> allBookingData = new ArrayList<>();
+
+        // For each booking in database, use id as client reference to call
+        // nuiteeApiClient.listBookings
+        // LiteAPI returns exactly one booking per clientReference
+        for (Booking booking : bookings) {
+            try {
+                String clientReference = booking.getId();
+                logger.debug("Fetching booking from Nuitee for clientReference: {}", clientReference);
+
+                BookingListResponse connectorResponse = nuiteeApiClient.listBookings(clientReference);
+
+                BookingListResponseDto.BookingDataDto mergedDto = null;
+
+                if (connectorResponse != null && connectorResponse.getData() != null
+                        && !connectorResponse.getData().isEmpty()) {
+                    // Map connector response to DTO - expecting exactly one booking per
+                    // clientReference
+                    BookingListResponseDto dto = bookingMapper.toBookingListResponseDto(connectorResponse);
+                    if (dto != null && dto.getData() != null && !dto.getData().isEmpty()) {
+                        // LiteAPI returns exactly one booking per clientReference
+                        mergedDto = dto.getData().get(0);
+                    }
+                }
+
+                // Merge Booking entity data with Nuitee response (entity data takes precedence)
+                mergedDto = bookingMapper.mergeBookingEntityData(mergedDto, booking);
+
+                if (mergedDto != null) {
+                    allBookingData.add(mergedDto);
+                    logger.debug("Added booking for clientReference: {} (bookingId: {})",
+                            clientReference,
+                            mergedDto.getBookingId());
+                } else {
+                    logger.debug("No booking data available for clientReference: {}", clientReference);
+                }
+            } catch (Exception e) {
+                logger.warn("Failed to fetch booking from Nuitee for booking ID {}: {}", booking.getId(),
+                        e.getMessage());
+                // Continue with other bookings even if one fails
+            }
+        }
+
+        // Collect unique hotel IDs from all bookings
+        List<String> uniqueHotelIds = allBookingData.stream()
+                .map(BookingListResponseDto.BookingDataDto::getHotelId)
+                .filter(java.util.Objects::nonNull)
+                .distinct()
+                .toList();
+
+        logger.info("Found {} unique hotel IDs across bookings", uniqueHotelIds.size());
+
+        // Fetch hotel details (including images) for all unique hotel IDs
+        java.util.Map<String, com.travelhub.connectors.nuitee.dto.response.MinimalHotelData> hotelDataMap = new java.util.HashMap<>();
+
+        if (!uniqueHotelIds.isEmpty()) {
+            try {
+                // Build hotels list request - hotelIds must be comma-separated
+                com.travelhub.connectors.nuitee.dto.request.HotelsListRequest hotelsRequest = new com.travelhub.connectors.nuitee.dto.request.HotelsListRequest();
+                hotelsRequest.setHotelIds(String.join(",", uniqueHotelIds));
+
+                logger.debug("Fetching hotel details for {} hotels", uniqueHotelIds.size());
+                com.travelhub.connectors.nuitee.dto.response.HotelsListResponse hotelsResponse = nuiteeApiClient
+                        .getHotels(hotelsRequest);
+
+                if (hotelsResponse != null && hotelsResponse.getData() != null) {
+                    // Create a map of hotelId -> MinimalHotelData for easy lookup
+                    for (com.travelhub.connectors.nuitee.dto.response.MinimalHotelData hotelData : hotelsResponse
+                            .getData()) {
+                        if (hotelData.getId() != null) {
+                            hotelDataMap.put(hotelData.getId(), hotelData);
+                        }
+                    }
+                    logger.info("Successfully fetched details for {} hotels", hotelDataMap.size());
+                }
+            } catch (Exception e) {
+                logger.warn("Failed to fetch hotel details: {}", e.getMessage());
+                // Continue without hotel images if API call fails
+            }
+        }
+
+        // Enrich booking data with hotel images
+        for (BookingListResponseDto.BookingDataDto bookingData : allBookingData) {
+            if (bookingData.getHotelId() != null && hotelDataMap.containsKey(bookingData.getHotelId())) {
+                com.travelhub.connectors.nuitee.dto.response.MinimalHotelData hotelData = hotelDataMap
+                        .get(bookingData.getHotelId());
+
+                // Update hotel info with images
+                BookingListResponseDto.HotelInfoDto hotelDto = bookingData.getHotel();
+                if (hotelDto == null) {
+                    hotelDto = new BookingListResponseDto.HotelInfoDto();
+                    bookingData.setHotel(hotelDto);
+                }
+
+                // Set hotel images
+                if (hotelData.getMainPhoto() != null) {
+                    hotelDto.setMainPhoto(hotelData.getMainPhoto());
+                }
+                if (hotelData.getThumbnail() != null) {
+                    hotelDto.setThumbnail(hotelData.getThumbnail());
+                }
+
+                logger.debug("Enriched booking {} with hotel images", bookingData.getBookingId());
+            }
+        }
+
+        // Create and return aggregated response
+        BookingListResponseDto response = new BookingListResponseDto();
+        response.setData(allBookingData);
+        logger.info("Returning {} total bookings", allBookingData.size());
+
+        return response;
     }
 }

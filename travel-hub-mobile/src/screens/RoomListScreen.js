@@ -137,9 +137,11 @@ export const RoomListScreen = ({ navigation, route }) => {
     // Determine lowest price and details from the first offer (cheapest) which is guaranteed by backend sort
     // But we can also use 'startingPrice' field directly
 
-    // Price Calculation (use suggestedSellingPrice)
-    const totalPrice = item.startingPrice?.suggestedSellingPrice?.[0]?.amount || 0;
-    const currency = item.startingPrice?.suggestedSellingPrice?.[0]?.currency || 'MAD';
+    // Price Calculation (use offerRetailRate - mapped to total in RetailRateDetailDto)
+    const totalPrice = item.startingPrice?.total?.[0]?.amount || 0;
+    const currency = item.startingPrice?.total?.[0]?.currency || 'MAD';
+    // offerInitialPrice is mapped to initialPrice in RetailRateDetailDto
+    const initialPrice = item.startingPrice?.initialPrice?.[0]?.amount;
     const formattedPrice = new Intl.NumberFormat('fr-MA', {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
@@ -227,9 +229,10 @@ export const RoomListScreen = ({ navigation, route }) => {
     let discountPercentage = 0;
     if (representativeOffer.retailRate?.initialPrice && representativeOffer.retailRate.initialPrice.length > 0) {
       const initialPrice = representativeOffer.retailRate.initialPrice[0].amount;
-      const suggestedPrice = representativeOffer.retailRate?.suggestedSellingPrice?.[0]?.amount || totalPrice;
-      if (initialPrice > suggestedPrice) {
-        discountPercentage = Math.round(((initialPrice - suggestedPrice) / initialPrice) * 100);
+      // Use total (offerRetailRate) instead of suggestedSellingPrice
+      const retailPrice = representativeOffer.retailRate?.total?.[0]?.amount || totalPrice;
+      if (initialPrice > retailPrice) {
+        discountPercentage = Math.round(((initialPrice - retailPrice) / initialPrice) * 100);
       }
     }
 

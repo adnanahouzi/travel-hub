@@ -10,7 +10,6 @@ const apiClient = axios.create({
 // Request interceptor
 apiClient.interceptors.request.use(
   (config) => {
-    console.log('API Request:', config.method.toUpperCase(), config.url);
     return config;
   },
   (error) => {
@@ -99,10 +98,8 @@ export const ApiService = {
     return apiClient.get(ENDPOINTS.GET_HOTEL_DETAILS(hotelId));
   },
 
-  listBookings: async (guestId = '135447') => {
-    return apiClient.get(ENDPOINTS.LIST_BOOKINGS, {
-      params: { guestId }
-    });
+  listBookings: async () => {
+    return apiClient.get(ENDPOINTS.LIST_BOOKINGS);
   },
 };
 

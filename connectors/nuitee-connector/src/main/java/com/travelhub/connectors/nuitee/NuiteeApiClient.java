@@ -41,6 +41,6 @@ public interface NuiteeApiClient {
 
         BookResponse getBooking(String bookingId);
 
-        com.travelhub.connectors.nuitee.dto.response.BookingListResponse listBookings(String guestId,
+        com.travelhub.connectors.nuitee.dto.response.BookingListResponse listBookings(
                         String clientReference);
 }

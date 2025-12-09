@@ -44,6 +44,7 @@ public class BookResponseDto {
         private String checkout;
         private String hotelId;
         private String hotelName;
+        private HotelInfoDto hotel;
         private List<RoomBookedDto> rooms;
         private GuestContactDto guest;
 
@@ -141,6 +142,161 @@ public class BookResponseDto {
 
         public void setGuest(GuestContactDto guest) {
             this.guest = guest;
+        }
+
+        public HotelInfoDto getHotel() {
+            return hotel;
+        }
+
+        public void setHotel(HotelInfoDto hotel) {
+            this.hotel = hotel;
+        }
+    }
+
+    public static class HotelInfoDto {
+        private String hotelId;
+        private String name;
+        private String mainPhoto;
+        private String thumbnail;
+        private String address;
+        private String city;
+        private String country;
+        private String zip;
+        private Integer starRating;
+        private BigDecimal rating;
+        private Integer reviewCount;
+        private LocationDto location;
+        private CheckinCheckoutTimesDto checkinCheckoutTimes;
+        private String phone;
+        private String email;
+        private List<HotelImageDto> images;
+
+        public String getHotelId() {
+            return hotelId;
+        }
+
+        public void setHotelId(String hotelId) {
+            this.hotelId = hotelId;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public void setName(String name) {
+            this.name = name;
+        }
+
+        public String getMainPhoto() {
+            return mainPhoto;
+        }
+
+        public void setMainPhoto(String mainPhoto) {
+            this.mainPhoto = mainPhoto;
+        }
+
+        public String getThumbnail() {
+            return thumbnail;
+        }
+
+        public void setThumbnail(String thumbnail) {
+            this.thumbnail = thumbnail;
+        }
+
+        public String getAddress() {
+            return address;
+        }
+
+        public void setAddress(String address) {
+            this.address = address;
+        }
+
+        public String getCity() {
+            return city;
+        }
+
+        public void setCity(String city) {
+            this.city = city;
+        }
+
+        public String getCountry() {
+            return country;
+        }
+
+        public void setCountry(String country) {
+            this.country = country;
+        }
+
+        public String getZip() {
+            return zip;
+        }
+
+        public void setZip(String zip) {
+            this.zip = zip;
+        }
+
+        public Integer getStarRating() {
+            return starRating;
+        }
+
+        public void setStarRating(Integer starRating) {
+            this.starRating = starRating;
+        }
+
+        public BigDecimal getRating() {
+            return rating;
+        }
+
+        public void setRating(BigDecimal rating) {
+            this.rating = rating;
+        }
+
+        public Integer getReviewCount() {
+            return reviewCount;
+        }
+
+        public void setReviewCount(Integer reviewCount) {
+            this.reviewCount = reviewCount;
+        }
+
+        public LocationDto getLocation() {
+            return location;
+        }
+
+        public void setLocation(LocationDto location) {
+            this.location = location;
+        }
+
+        public CheckinCheckoutTimesDto getCheckinCheckoutTimes() {
+            return checkinCheckoutTimes;
+        }
+
+        public void setCheckinCheckoutTimes(CheckinCheckoutTimesDto checkinCheckoutTimes) {
+            this.checkinCheckoutTimes = checkinCheckoutTimes;
+        }
+
+        public String getPhone() {
+            return phone;
+        }
+
+        public void setPhone(String phone) {
+            this.phone = phone;
+        }
+
+        public String getEmail() {
+            return email;
+        }
+
+        public void setEmail(String email) {
+            this.email = email;
+        }
+
+        public List<HotelImageDto> getImages() {
+            return images;
+        }
+
+        public void setImages(List<HotelImageDto> images) {
+            this.images = images;
         }
     }
 

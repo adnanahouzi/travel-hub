@@ -5,14 +5,12 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 
-import java.util.UUID;
-
 @Schema(description = "Request to initiate a booking")
 public class BookingInitiationRequestDto {
 
     @Schema(description = "Simulation ID from the prebook step")
     @NotNull(message = "Simulation ID is required")
-    private UUID simulationId;
+    private String simulationId;
 
     @Schema(description = "Information about the booking holder")
     @NotNull(message = "Holder information is required")
@@ -24,11 +22,11 @@ public class BookingInitiationRequestDto {
     @Pattern(regexp = "^[0-9]{16}$", message = "Banking account must be exactly 16 digits")
     private String bankingAccount;
 
-    public UUID getSimulationId() {
+    public String getSimulationId() {
         return simulationId;
     }
 
-    public void setSimulationId(UUID simulationId) {
+    public void setSimulationId(String simulationId) {
         this.simulationId = simulationId;
     }
 
