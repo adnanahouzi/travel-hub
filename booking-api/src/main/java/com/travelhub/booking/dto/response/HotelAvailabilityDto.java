@@ -29,6 +29,9 @@ public class HotelAvailabilityDto {
     // From HotelRate
     private List<RoomTypeDto> roomTypes;
     private Integer et;
+    
+    // Calculated distance from search place (in km)
+    private BigDecimal distance;
 
     // Getters and Setters
 
@@ -206,5 +209,13 @@ public class HotelAvailabilityDto {
 
     public void setStars(Integer stars) {
         this.stars = stars;
+    }
+
+    public BigDecimal getDistance() {
+        return distance;
+    }
+
+    public void setDistance(BigDecimal distance) {
+        this.distance = distance;
     }
 }

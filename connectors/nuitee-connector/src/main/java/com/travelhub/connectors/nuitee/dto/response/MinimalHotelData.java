@@ -320,119 +320,24 @@ public class MinimalHotelData {
         }
     }
 
-    public static class Place {
-        private List<AddressComponent> addressComponents;
-        private String displayName;
-        private Location location;
-        private String placeId;
-        private List<String> types;
-        private Viewport viewport;
-
-        public List<AddressComponent> getAddressComponents() {
-            return addressComponents;
-        }
-
-        public void setAddressComponents(List<AddressComponent> addressComponents) {
-            this.addressComponents = addressComponents;
-        }
-
-        public String getDisplayName() {
-            return displayName;
-        }
-
-        public void setDisplayName(String displayName) {
-            this.displayName = displayName;
-        }
-
-        public Location getLocation() {
-            return location;
-        }
-
-        public void setLocation(Location location) {
-            this.location = location;
-        }
-
-        public String getPlaceId() {
-            return placeId;
-        }
-
-        public void setPlaceId(String placeId) {
-            this.placeId = placeId;
-        }
-
-        public List<String> getTypes() {
-            return types;
-        }
-
-        public void setTypes(List<String> types) {
-            this.types = types;
-        }
-
-        public Viewport getViewport() {
-            return viewport;
-        }
-
-        public void setViewport(Viewport viewport) {
-            this.viewport = viewport;
-        }
-    }
-
-    public static class AddressComponent {
-        private String languageCode;
-        private String longText;
-        private String shortText;
-        private List<String> types;
-
-        public String getLanguageCode() {
-            return languageCode;
-        }
-
-        public void setLanguageCode(String languageCode) {
-            this.languageCode = languageCode;
-        }
-
-        public String getLongText() {
-            return longText;
-        }
-
-        public void setLongText(String longText) {
-            this.longText = longText;
-        }
-
-        public String getShortText() {
-            return shortText;
-        }
-
-        public void setShortText(String shortText) {
-            this.shortText = shortText;
-        }
-
-        public List<String> getTypes() {
-            return types;
-        }
-
-        public void setTypes(List<String> types) {
-            this.types = types;
-        }
-    }
 
     public static class Location {
-        private Double latitude;
-        private Double longitude;
+        private BigDecimal latitude;
+        private BigDecimal longitude;
 
-        public Double getLatitude() {
+        public BigDecimal getLatitude() {
             return latitude;
         }
 
-        public void setLatitude(Double latitude) {
+        public void setLatitude(BigDecimal latitude) {
             this.latitude = latitude;
         }
 
-        public Double getLongitude() {
+        public BigDecimal getLongitude() {
             return longitude;
         }
 
-        public void setLongitude(Double longitude) {
+        public void setLongitude(BigDecimal longitude) {
             this.longitude = longitude;
         }
     }
@@ -459,22 +364,22 @@ public class MinimalHotelData {
     }
 
     public static class Coordinate {
-        private Double latitude;
-        private Double longitude;
+        private BigDecimal latitude;
+        private BigDecimal longitude;
 
-        public Double getLatitude() {
+        public BigDecimal getLatitude() {
             return latitude;
         }
 
-        public void setLatitude(Double latitude) {
+        public void setLatitude(BigDecimal latitude) {
             this.latitude = latitude;
         }
 
-        public Double getLongitude() {
+        public BigDecimal getLongitude() {
             return longitude;
         }
 
-        public void setLongitude(Double longitude) {
+        public void setLongitude(BigDecimal longitude) {
             this.longitude = longitude;
         }
     }

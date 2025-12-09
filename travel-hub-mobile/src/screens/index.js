@@ -1,5 +1,6 @@
 export { SearchScreen } from './SearchScreen';
 export { HotelListScreen } from './HotelListScreen';
+export { HotelMapScreen } from './HotelMapScreen';
 export { HotelDetailsScreen } from './HotelDetailsScreen';
 export { RoomListScreen } from './RoomListScreen';
 export { BookingSummaryScreen } from './BookingSummaryScreen';

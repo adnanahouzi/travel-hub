@@ -102,6 +102,7 @@ export const HotelListScreen = ({ navigation }) => {
     const firstRate = firstRoomType?.rates?.[0];
     const totalPrice = firstRoomType?.suggestedSellingPrice.amount || 0;
     const currency = firstRoomType?.suggestedSellingPrice.currency || 'DH';
+    const initialPrice = firstRoomType?.offerInitialPrice?.amount;
 
     // Points calculation (10% of price)
     const points = Math.round(totalPrice * 0.1);
@@ -109,12 +110,23 @@ export const HotelListScreen = ({ navigation }) => {
     const reviewScore = item.rating || 0;
     const reviewCount = item.reviewCount ?? 0;
     const reviewText = reviewScore >= 8 ? 'Very good' : reviewScore >= 7 ? 'Good' : 'Pleasant';
-    
+
+    // Use distance from backend if available
+    let distanceText = '';
+    if (item.distance != null) {
+      distanceText = `À ${item.distance.toFixed(1).replace('.', ',')} km du centre-ville`;
+    }
+
     // Check if breakfast is included (boardType === "BI")
     const hasBreakfast = firstRate?.boardType === "BI";
-    
+
     // Check if free cancellation is available (refundableTag === "RFN")
     const hasFreeCancellation = firstRate?.cancellationPolicies?.refundableTag === "RFN";
+    
+    // Check if wifi is available (from perks or facilities)
+    const hasWifi = firstRate?.perks?.some(p => 
+      p.toLowerCase().includes('wifi') || p.toLowerCase().includes('wi-fi')
+    ) || false;
 
     return (
       <TouchableOpacity
@@ -130,15 +142,11 @@ export const HotelListScreen = ({ navigation }) => {
             resizeMode="cover"
           />
 
-          {/* Rating Badge */}
+          {/* Rating Badge - Combined */}
           <View style={styles.ratingBadge}>
             <Text style={styles.ratingScore}>{reviewScore.toFixed(1).replace('.', ',')}</Text>
-          </View>
-
-          {/* Review Text */}
-          <View style={styles.reviewTextContainer}>
-            <Text style={styles.reviewText}>{reviewText}</Text>
-            <Text style={styles.reviewCount}> | {reviewCount.toLocaleString()} Avis</Text>
+            <Text style={styles.ratingText}> {reviewText}</Text>
+            <Text style={styles.ratingCount}> {reviewCount.toLocaleString()} Avis</Text>
           </View>
 
           {/* Favorite Button */}
@@ -160,11 +168,11 @@ export const HotelListScreen = ({ navigation }) => {
             </View>
           </View>
 
-          {/* Location */}
+          {/* Location with Distance */}
           <View style={styles.addressRow}>
             <Ionicons name="location-outline" size={14} color="#6B7280" />
             <Text style={styles.addressText} numberOfLines={1}>
-              {item.distanceText || item.address || 'Marrakech'}
+              {distanceText || item.address || searchParams.placeName || 'Marrakech'}
             </Text>
           </View>
 
@@ -172,6 +180,11 @@ export const HotelListScreen = ({ navigation }) => {
           <View style={styles.priceSection}>
             <View>
               <Text style={styles.priceLabel}>Prix <Text style={styles.priceSubLabel}>(à partir de)</Text></Text>
+              {initialPrice && initialPrice > totalPrice && (
+                <Text style={styles.originalPrice}>
+                  {initialPrice.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {currency}
+                </Text>
+              )}
             </View>
             <Text style={styles.price}>
               {totalPrice.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {currency}
@@ -193,6 +206,12 @@ export const HotelListScreen = ({ navigation }) => {
               <View style={styles.amenityRow}>
                 <Ionicons name="cafe-outline" size={16} color="#10B981" />
                 <Text style={styles.amenityText}>Petit-déjeuner offert</Text>
+              </View>
+            )}
+            {hasWifi && (
+              <View style={styles.amenityRow}>
+                <Ionicons name="wifi-outline" size={16} color="#10B981" />
+                <Text style={styles.amenityText}>Wifi gratuit</Text>
               </View>
             )}
             {hasFreeCancellation && (
@@ -219,13 +238,33 @@ export const HotelListScreen = ({ navigation }) => {
         </TouchableOpacity>
 
         <View style={styles.headerInfo}>
-          <Text style={styles.headerTitle}>{searchParams.placeName || 'Résultats'}</Text>
-          <Text style={styles.headerSubtitle}>{formatSearchCriteria()}</Text>
+          <Text style={styles.headerTitle}>Choisissez votre hôtel</Text>
         </View>
 
-        <TouchableOpacity style={styles.filterButton}>
-          <Ionicons name="filter" size={22} color="#E85D40" />
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity style={styles.headerActionButton}>
+            <Ionicons name="menu" size={22} color="#E85D40" />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.headerActionButton}>
+            <Ionicons name="options" size={22} color="#E85D40" />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Filter Tags */}
+      <View style={styles.filtersContainer}>
+        <View style={styles.filtersContent}>
+          <TouchableOpacity style={[styles.filterChip, styles.filterChipActive]}>
+            <Text style={[styles.filterChipText, styles.filterChipTextActive]}>Petit-déjeuner offert</Text>
+            <Ionicons name="close-circle" size={16} color="#FFF" style={{ marginLeft: 4 }} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.filterChip}>
+            <Text style={styles.filterChipText}>Wifi gratuit</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.filterChip}>
+            <Text style={styles.filterChipText}>Aucun paiement anticipé</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Hotel List */}
@@ -254,7 +293,10 @@ export const HotelListScreen = ({ navigation }) => {
 
       {/* View Map Button */}
       <View style={styles.bottomBar}>
-        <TouchableOpacity style={styles.viewMapButton}>
+        <TouchableOpacity
+          style={styles.viewMapButton}
+          onPress={() => navigation.navigate('HotelMap')}
+        >
           <Ionicons name="map-outline" size={18} color="#1F2937" />
           <Text style={styles.viewMapText}>Vue carte</Text>
         </TouchableOpacity>
@@ -294,8 +336,45 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#9CA3AF',
   },
-  filterButton: {
-    marginLeft: 12,
+  headerActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  headerActionButton: {
+    padding: 4,
+  },
+  filtersContainer: {
+    backgroundColor: '#FFF',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  filtersContent: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    gap: 8,
+  },
+  filterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  filterChipActive: {
+    backgroundColor: '#E85D40',
+    borderColor: '#E85D40',
+  },
+  filterChipText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  filterChipTextActive: {
+    color: '#FFF',
   },
   listContent: {
     paddingVertical: 16,
@@ -325,33 +404,28 @@ const styles = StyleSheet.create({
     top: 12,
     left: 12,
     backgroundColor: '#10B981',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   ratingScore: {
     color: '#FFF',
     fontSize: 16,
     fontWeight: '700',
   },
-  reviewTextContainer: {
-    position: 'absolute',
-    top: 12,
-    left: 70,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
+  ratingText: {
+    color: '#FFF',
+    fontSize: 12,
+    fontWeight: '600',
+    marginLeft: 4,
   },
-  reviewText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#1F2937',
-  },
-  reviewCount: {
+  ratingCount: {
+    color: '#FFF',
     fontSize: 11,
-    color: '#6B7280',
-    marginTop: 2,
+    fontWeight: '500',
+    marginLeft: 4,
   },
   favoriteButton: {
     position: 'absolute',
@@ -418,12 +492,18 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   priceLabel: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#6B7280',
   },
   priceSubLabel: {
     fontSize: 12,
     color: '#9CA3AF',
+  },
+  originalPrice: {
+    fontSize: 14,
+    color: '#9CA3AF',
+    textDecorationLine: 'line-through',
+    marginTop: 2,
   },
   price: {
     fontSize: 22,

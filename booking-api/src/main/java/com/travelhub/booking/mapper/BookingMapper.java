@@ -35,7 +35,6 @@ public class BookingMapper {
         PlaceDto placeDto = new PlaceDto();
         placeDto.setPlaceId(place.getPlaceId());
         placeDto.setDisplayName(place.getDisplayName());
-        placeDto.setFormattedAddress(place.getFormattedAddress());
         placeDto.setTypes(place.getTypes());
         return placeDto;
     }
@@ -417,14 +416,14 @@ public class BookingMapper {
             return null;
         }
         RateSearchResponseDto rateSearchResponse = new RateSearchResponseDto();
-        rateSearchResponse.setHotels(mergeHotelData(response.getData(), hotelsListResponse.getData()));
+        rateSearchResponse.setHotels(mergeHotelData(response.getData(), hotelsListResponse.getData(), hotelsListResponse.getPlace()));
         rateSearchResponse.setGuestLevel(response.getGuestLevel());
         rateSearchResponse.setSandbox(response.getSandbox());
         rateSearchResponse.setSessionId(response.getSessionId());
         return rateSearchResponse;
     }
 
-    private List<HotelAvailabilityDto> mergeHotelData(List<HotelRate> hotelRates, List<MinimalHotelData> hotelInfos) {
+    private List<HotelAvailabilityDto> mergeHotelData(List<HotelRate> hotelRates, List<MinimalHotelData> hotelInfos, Place place) {
         if (hotelRates == null) {
             return null;
         }
@@ -438,11 +437,11 @@ public class BookingMapper {
         }
 
         return hotelRates.stream()
-                .map(rate -> mergeHotelAvailability(rate, hotelInfoMap.get(rate.getHotelId())))
+                .map(rate -> mergeHotelAvailability(rate, hotelInfoMap.get(rate.getHotelId()), place))
                 .collect(Collectors.toList());
     }
 
-    private HotelAvailabilityDto mergeHotelAvailability(HotelRate hotelRate, MinimalHotelData hotelInfo) {
+    private HotelAvailabilityDto mergeHotelAvailability(HotelRate hotelRate, MinimalHotelData hotelInfo, Place place) {
         if (hotelRate == null) {
             return null;
         }
@@ -463,9 +462,52 @@ public class BookingMapper {
             dto.setReviewCount(hotelInfo.getReviewCount());
             dto.setStars(hotelInfo.getStars());
             dto.setLocation(toLocationDto(hotelInfo.getLongitude(), hotelInfo.getLatitude()));
+            
+            // Calculate distance from place if both locations are available
+            if (place != null && place.getLocation() != null && hotelInfo.getLatitude() != null && hotelInfo.getLongitude() != null) {
+                BigDecimal placeLat = place.getLocation().getLatitude();
+                BigDecimal placeLon = place.getLocation().getLongitude();
+                BigDecimal hotelLat = hotelInfo.getLatitude();
+                BigDecimal hotelLon = hotelInfo.getLongitude();
+                
+                if (placeLat != null && placeLon != null && hotelLat != null && hotelLon != null) {
+                    BigDecimal distance = calculateDistance(placeLat, placeLon, hotelLat, hotelLon);
+                    dto.setDistance(distance);
+                }
+            }
         }
 
         return dto;
+    }
+    
+    /**
+     * Calculate distance between two coordinates using Haversine formula
+     * @param lat1 Latitude of first point
+     * @param lon1 Longitude of first point
+     * @param lat2 Latitude of second point
+     * @param lon2 Longitude of second point
+     * @return Distance in kilometers
+     */
+    private BigDecimal calculateDistance(BigDecimal lat1, BigDecimal lon1, BigDecimal lat2, BigDecimal lon2) {
+        if (lat1 == null || lon1 == null || lat2 == null || lon2 == null) {
+            return null;
+        }
+        
+        final int EARTH_RADIUS_KM = 6371;
+        
+        double lat1Rad = Math.toRadians(lat1.doubleValue());
+        double lat2Rad = Math.toRadians(lat2.doubleValue());
+        double deltaLat = Math.toRadians(lat2.doubleValue() - lat1.doubleValue());
+        double deltaLon = Math.toRadians(lon2.doubleValue() - lon1.doubleValue());
+        
+        double a = Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
+                   Math.cos(lat1Rad) * Math.cos(lat2Rad) *
+                   Math.sin(deltaLon / 2) * Math.sin(deltaLon / 2);
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        
+        double distance = EARTH_RADIUS_KM * c;
+        
+        return BigDecimal.valueOf(distance).setScale(2, java.math.RoundingMode.HALF_UP);
     }
 
     private LocationDto toLocationDto(BigDecimal longitude, BigDecimal latitude) {

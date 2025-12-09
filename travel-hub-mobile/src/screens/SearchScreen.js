@@ -63,8 +63,14 @@ export const SearchScreen = ({ navigation }) => {
 
   // --- Room Configuration Utilities ---
 
+  const MAX_ROOMS = 4;
+  const MAX_ADULTS_PER_ROOM = 6;
+  const MAX_CHILDREN_PER_ROOM = 4;
+
   const addRoom = () => {
-    setRoomsConfig([...roomsConfig, { adults: 2, children: 0, childAges: [] }]);
+    if (roomsConfig.length < MAX_ROOMS) {
+      setRoomsConfig([...roomsConfig, { adults: 2, children: 0, childAges: [] }]);
+    }
   };
 
   const removeRoom = (index) => {
@@ -76,13 +82,13 @@ export const SearchScreen = ({ navigation }) => {
 
   const updateRoomAdults = (roomIndex, count) => {
     const updated = [...roomsConfig];
-    updated[roomIndex].adults = Math.max(1, count);
+    updated[roomIndex].adults = Math.max(1, Math.min(MAX_ADULTS_PER_ROOM, count));
     setRoomsConfig(updated);
   };
 
   const updateRoomChildren = (roomIndex, count) => {
     const updated = [...roomsConfig];
-    const newCount = Math.max(0, count);
+    const newCount = Math.max(0, Math.min(MAX_CHILDREN_PER_ROOM, count));
     updated[roomIndex].children = newCount;
 
     // Adjust childAges array
@@ -105,6 +111,10 @@ export const SearchScreen = ({ navigation }) => {
 
   const getTotalGuests = () => {
     return roomsConfig.reduce((total, room) => total + room.adults + room.children, 0);
+  };
+
+  const getTotalAdults = () => {
+    return roomsConfig.reduce((total, room) => total + room.adults, 0);
   };
 
   const getTotalRooms = () => {
@@ -583,49 +593,52 @@ export const SearchScreen = ({ navigation }) => {
           <View style={styles.roomConfigModal}>
             {/* Header */}
             <View style={styles.roomConfigHeader}>
-              <Text style={styles.roomConfigTitle}>Configuration des chambres</Text>
-              <TouchableOpacity onPress={() => setShowGuestPicker(false)}>
-                <Ionicons name="close" size={28} color="#1F2937" />
+              <View style={styles.headerContent}>
+                <Text style={styles.roomConfigTitle}>Chambres et invités</Text>
+                <Text style={styles.roomConfigSummary}>
+                  {roomsConfig.length} {roomsConfig.length > 1 ? 'chambres' : 'chambre'}, {getTotalAdults()} {getTotalAdults() > 1 ? 'adultes' : 'adulte'}
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowGuestPicker(false)} style={styles.closeButton}>
+                <Ionicons name="close" size={24} color="#1F2937" />
               </TouchableOpacity>
             </View>
 
             {/* Scrollable Room List */}
             <ScrollView style={styles.roomConfigScroll} showsVerticalScrollIndicator={false}>
+              <Text style={styles.sectionTitle}>Chambres</Text>
+              
               {roomsConfig.map((room, roomIndex) => (
                 <View key={roomIndex} style={styles.roomConfigSection}>
-                  {/* Room Header */}
-                  <View style={styles.roomHeader}>
-                    <Text style={styles.roomTitle}>Chambre {roomIndex + 1}</Text>
-                    {roomsConfig.length > 1 && (
-                      <TouchableOpacity
-                        style={styles.removeRoomButton}
-                        onPress={() => removeRoom(roomIndex)}
-                      >
-                        <Ionicons name="trash-outline" size={18} color="#EF4444" />
-                        <Text style={styles.removeRoomText}>Supprimer la chambre</Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
-
                   {/* Adults Row */}
                   <View style={styles.roomConfigRow}>
                     <View style={styles.roomConfigLabelContainer}>
-                      <Ionicons name="person-outline" size={20} color="#6B7280" />
                       <Text style={styles.roomConfigLabel}>Adultes</Text>
+                      <Text style={styles.roomConfigSubLabel}>{'> 18 ans'}</Text>
                     </View>
                     <View style={styles.roomConfigCounter}>
                       <TouchableOpacity
-                        style={styles.roomConfigButton}
+                        style={[styles.roomConfigButton, room.adults <= 1 && styles.roomConfigButtonDisabled]}
                         onPress={() => updateRoomAdults(roomIndex, room.adults - 1)}
+                        disabled={room.adults <= 1}
                       >
-                        <Ionicons name="remove" size={20} color="#1F2937" />
+                        <Ionicons 
+                          name="remove" 
+                          size={20} 
+                          color={room.adults <= 1 ? "#9CA3AF" : "#E85D40"} 
+                        />
                       </TouchableOpacity>
                       <Text style={styles.roomConfigValue}>{room.adults}</Text>
                       <TouchableOpacity
-                        style={styles.roomConfigButton}
+                        style={[styles.roomConfigButton, room.adults >= MAX_ADULTS_PER_ROOM && styles.roomConfigButtonDisabled]}
                         onPress={() => updateRoomAdults(roomIndex, room.adults + 1)}
+                        disabled={room.adults >= MAX_ADULTS_PER_ROOM}
                       >
-                        <Ionicons name="add" size={20} color="#1F2937" />
+                        <Ionicons 
+                          name="add" 
+                          size={20} 
+                          color={room.adults >= MAX_ADULTS_PER_ROOM ? "#9CA3AF" : "#E85D40"} 
+                        />
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -633,22 +646,32 @@ export const SearchScreen = ({ navigation }) => {
                   {/* Children Row */}
                   <View style={styles.roomConfigRow}>
                     <View style={styles.roomConfigLabelContainer}>
-                      <Ionicons name="person-outline" size={20} color="#6B7280" />
                       <Text style={styles.roomConfigLabel}>Enfants</Text>
+                      <Text style={styles.roomConfigSubLabel}>0 - 17 ans</Text>
                     </View>
                     <View style={styles.roomConfigCounter}>
                       <TouchableOpacity
-                        style={styles.roomConfigButton}
+                        style={[styles.roomConfigButton, room.children <= 0 && styles.roomConfigButtonDisabled]}
                         onPress={() => updateRoomChildren(roomIndex, room.children - 1)}
+                        disabled={room.children <= 0}
                       >
-                        <Ionicons name="remove" size={20} color="#1F2937" />
+                        <Ionicons 
+                          name="remove" 
+                          size={20} 
+                          color={room.children <= 0 ? "#9CA3AF" : "#E85D40"} 
+                        />
                       </TouchableOpacity>
                       <Text style={styles.roomConfigValue}>{room.children}</Text>
                       <TouchableOpacity
-                        style={styles.roomConfigButton}
+                        style={[styles.roomConfigButton, room.children >= MAX_CHILDREN_PER_ROOM && styles.roomConfigButtonDisabled]}
                         onPress={() => updateRoomChildren(roomIndex, room.children + 1)}
+                        disabled={room.children >= MAX_CHILDREN_PER_ROOM}
                       >
-                        <Ionicons name="add" size={20} color="#1F2937" />
+                        <Ionicons 
+                          name="add" 
+                          size={20} 
+                          color={room.children >= MAX_CHILDREN_PER_ROOM ? "#9CA3AF" : "#E85D40"} 
+                        />
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -657,7 +680,6 @@ export const SearchScreen = ({ navigation }) => {
                   {room.childAges.map((age, childIndex) => (
                     <View key={childIndex} style={styles.childAgeRow}>
                       <View style={styles.roomConfigLabelContainer}>
-                        <Ionicons name="person-outline" size={20} color="#6B7280" />
                         <Text style={styles.childAgeLabel}>Enfant {childIndex + 1}</Text>
                       </View>
                       <TouchableOpacity
@@ -668,7 +690,7 @@ export const SearchScreen = ({ navigation }) => {
                           updateChildAge(roomIndex, childIndex, nextAge);
                         }}
                       >
-                        <Text style={styles.ageDropdownText}>{age}</Text>
+                        <Text style={styles.ageDropdownText}>{age} ans</Text>
                         <Ionicons name="chevron-down" size={16} color="#6B7280" />
                       </TouchableOpacity>
                     </View>
@@ -680,19 +702,22 @@ export const SearchScreen = ({ navigation }) => {
               ))}
 
               {/* Add Room Button */}
-              <TouchableOpacity style={styles.addRoomButton} onPress={addRoom}>
-                <Text style={styles.addRoomButtonText}>Ajouter une chambre</Text>
-              </TouchableOpacity>
+              {roomsConfig.length < MAX_ROOMS && (
+                <TouchableOpacity 
+                  style={styles.addRoomButton} 
+                  onPress={addRoom}
+                >
+                  <Text style={styles.addRoomButtonText}>Ajouter chambre</Text>
+                </TouchableOpacity>
+              )}
             </ScrollView>
 
-            {/* Apply Button */}
+            {/* Validate Button */}
             <TouchableOpacity
-              style={styles.roomConfigApplyButton}
+              style={styles.validateButton}
               onPress={() => setShowGuestPicker(false)}
             >
-              <Text style={styles.roomConfigApplyButtonText}>
-                Appliquer • {getTotalGuests()} clients • {getTotalRooms()} {getTotalRooms() > 1 ? 'chambres' : 'chambre'}
-              </Text>
+              <Text style={styles.validateButtonText}>Valider</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -1072,16 +1097,34 @@ const styles = StyleSheet.create({
   roomConfigHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: 20,
     paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
   },
+  headerContent: {
+    flex: 1,
+  },
   roomConfigTitle: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: '700',
     color: '#1F2937',
+    marginBottom: 4,
+  },
+  roomConfigSummary: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  closeButton: {
+    padding: 4,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1F2937',
+    marginBottom: 16,
+    marginTop: 8,
   },
   roomConfigScroll: {
     maxHeight: height * 0.55,
@@ -1118,14 +1161,17 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   roomConfigLabelContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
+    flex: 1,
   },
   roomConfigLabel: {
     fontSize: 16,
     color: '#1F2937',
-    fontWeight: '500',
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  roomConfigSubLabel: {
+    fontSize: 13,
+    color: '#6B7280',
   },
   roomConfigCounter: {
     flexDirection: 'row',
@@ -1133,15 +1179,25 @@ const styles = StyleSheet.create({
     gap: 20,
   },
   roomConfigButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#F3F4F6',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#FFF',
+    borderWidth: 1,
+    borderColor: '#E85D40',
     justifyContent: 'center',
     alignItems: 'center',
   },
+  roomConfigButtonDisabled: {
+    borderColor: '#E5E7EB',
+    backgroundColor: '#F9FAFB',
+  },
   roomConfigValue: {
     fontSize: 18,
+    fontWeight: '600',
+    color: '#1F2937',
+    minWidth: 30,
+    textAlign: 'center',
     fontWeight: '600',
     color: '#1F2937',
     minWidth: 30,
@@ -1152,26 +1208,29 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: 12,
-    paddingLeft: 30,
+    paddingLeft: 0,
+    marginTop: 4,
   },
   childAgeLabel: {
     fontSize: 15,
-    color: '#6B7280',
+    color: '#1F2937',
     fontWeight: '500',
   },
   ageDropdown: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F3F4F6',
-    paddingHorizontal: 20,
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 8,
-    gap: 12,
-    minWidth: 80,
-    justifyContent: 'center',
+    gap: 8,
+    minWidth: 100,
+    justifyContent: 'space-between',
   },
   ageDropdownText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
     color: '#1F2937',
   },
@@ -1196,16 +1255,17 @@ const styles = StyleSheet.create({
     color: '#1F2937',
     fontWeight: '600',
   },
-  roomConfigApplyButton: {
-    backgroundColor: '#3B82F6',
-    paddingVertical: 16,
+  validateButton: {
+    backgroundColor: '#E85D40',
+    paddingVertical: 18,
     borderRadius: 12,
     alignItems: 'center',
-    marginTop: 12,
+    marginTop: 16,
+    width: '100%',
   },
-  roomConfigApplyButtonText: {
+  validateButtonText: {
     color: '#FFF',
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '700',
   },
 });

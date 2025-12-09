@@ -4,6 +4,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import {
   SearchScreen,
   HotelListScreen,
+  HotelMapScreen,
   HotelDetailsScreen,
   BookingScreen,
   RoomListScreen,
@@ -30,6 +31,7 @@ export const AppNavigator = () => {
       >
         <Stack.Screen name="Search" component={SearchScreen} />
         <Stack.Screen name="HotelList" component={HotelListScreen} />
+        <Stack.Screen name="HotelMap" component={HotelMapScreen} />
         <Stack.Screen name="HotelDetails" component={HotelDetailsScreen} />
         <Stack.Screen name="RoomList" component={RoomListScreen} />
         <Stack.Screen name="BookingSummary" component={BookingSummaryScreen} />
