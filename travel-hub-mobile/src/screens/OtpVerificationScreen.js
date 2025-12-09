@@ -5,13 +5,13 @@ import {
     StyleSheet,
     TouchableOpacity,
     TextInput,
-    SafeAreaView,
     Alert,
     ActivityIndicator,
     KeyboardAvoidingView,
     Platform,
     Image
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { ApiService } from '../services/api.service';
 
@@ -49,9 +49,10 @@ export const OtpVerificationScreen = ({ route, navigation }) => {
             const response = await ApiService.submitBooking(bookingData);
 
             // Navigate to Success Screen
+            // Use clientReference (database ID) instead of bookingId (LiteAPI ID)
             navigation.navigate('BookingSuccess', {
                 totalAmount: totalAmount,
-                bookingId: response.data?.bookingId
+                bookingId: response.data?.clientReference || response.data?.bookingId
             });
         } catch (error) {
             console.error('OTP Verification error:', error);

@@ -80,10 +80,10 @@ public class BookingController {
                 return ResponseEntity.ok(booking);
         }
 
-        @GetMapping("/{bookingId}")
+        @GetMapping("/{id}")
         public ResponseEntity<BookResponseDto> getBooking(
-                        @PathVariable String bookingId) {
-                return ResponseEntity.ok(bookingService.getBooking(bookingId));
+                        @PathVariable String id) {
+                return ResponseEntity.ok(bookingService.getBooking(id));
         }
 
         @GetMapping("/list")

@@ -15,9 +15,7 @@ import com.travelhub.booking.service.HotelDataService;
 import com.travelhub.connectors.nuitee.NuiteeApiClient;
 import com.travelhub.connectors.nuitee.dto.request.BookRequest;
 import com.travelhub.connectors.nuitee.dto.request.PrebookRequest;
-import com.travelhub.connectors.nuitee.dto.response.BookResponse;
-import com.travelhub.connectors.nuitee.dto.response.BookingListResponse;
-import com.travelhub.connectors.nuitee.dto.response.PrebookResponse;
+import com.travelhub.connectors.nuitee.dto.response.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -217,8 +215,12 @@ public class BookingServiceImpl implements BookingService {
                 // Save the complete booking with relationships
                 bookingRepository.save(savedBooking);
 
-                // Return the connector response as DTO
-                return bookingMapper.toBookResponseDto(connectorResponse);
+                // Return the connector response as DTO and set clientReference (database ID)
+                BookResponseDto responseDto = bookingMapper.toBookResponseDto(connectorResponse);
+                if (responseDto != null && responseDto.getData() != null) {
+                    responseDto.getData().setClientReference(savedBooking.getId());
+                }
+                return responseDto;
             } else if (connectorResponse != null && connectorResponse.getData() != null
                     && !"CONFIRMED".equals(connectorResponse.getData().getStatus())) {
                 logger.warn("Received failed status from connector for booking: {}", savedBooking.getId());
@@ -241,27 +243,105 @@ public class BookingServiceImpl implements BookingService {
     }
 
     @Override
-    public BookResponseDto getBooking(String bookingId) {
-        logger.info("Retrieving booking details for bookingId: {}", bookingId);
-        BookResponse connectorResponse = nuiteeApiClient
-                .getBooking(bookingId);
-        BookResponseDto dto = bookingMapper.toBookResponseDto(connectorResponse);
+    public BookResponseDto getBooking(String id) {
+        logger.info("Retrieving booking details for database ID: {}", id);
 
-        // Enrich with hotel details if hotelId is available
+        // Get booking by id from database
+        Booking booking = bookingRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Booking not found with id: " + id));
+
+        logger.info("Found booking in database with bookingId: {}", booking.getBookingId());
+
+        // Call LiteAPI with the bookingId from the database
+        String liteApiBookingId = booking.getBookingId();
+        BookResponse connectorResponse = null;
+
+        if (liteApiBookingId != null) {
+            try {
+                logger.info("Calling LiteAPI with bookingId: {}", liteApiBookingId);
+                connectorResponse = nuiteeApiClient.getBooking(liteApiBookingId);
+            } catch (Exception e) {
+                logger.warn("Failed to fetch booking from LiteAPI: {}", e.getMessage());
+            }
+        }
+
+        // Map connector response to DTO
+        BookResponseDto dto;
+        if (connectorResponse != null) {
+            dto = bookingMapper.toBookResponseDto(connectorResponse);
+        } else {
+            // If LiteAPI call failed, create DTO from database booking
+            dto = new BookResponseDto();
+            BookResponseDto.BookDataDto bookData = new BookResponseDto.BookDataDto();
+            bookData.setBookingId(booking.getBookingId());
+            bookData.setStatus(booking.getStatus());
+            bookData.setClientReference(booking.getId());
+            bookData.setCheckin(booking.getCheckin() != null ? booking.getCheckin().toString() : null);
+            bookData.setCheckout(booking.getCheckout() != null ? booking.getCheckout().toString() : null);
+            bookData.setHotelId(booking.getHotelId());
+            bookData.setHotelName(booking.getHotelName());
+            dto.setData(bookData);
+        }
+
+        // Fetch hotel details if we have a hotel ID
         if (dto != null && dto.getData() != null && dto.getData().getHotelId() != null) {
             try {
                 String hotelId = dto.getData().getHotelId();
                 logger.info("Fetching hotel details for hotelId: {}", hotelId);
-                var hotelDetailsResponse = hotelDataService.getHotelDetails(hotelId, "fr");
+                HotelDetailsResponse hotelDetailsResponse = hotelDataService.getHotelDetails(hotelId, "fr");
                 if (hotelDetailsResponse != null && hotelDetailsResponse.getData() != null) {
-                    var hotelData = hotelDetailsResponse.getData();
+                    HotelData hotelData = hotelDetailsResponse.getData();
                     BookResponseDto.HotelInfoDto hotelInfo = bookingMapper.toHotelInfoDto(hotelData);
                     dto.getData().setHotel(hotelInfo);
                 }
             } catch (Exception e) {
-                logger.warn("Failed to fetch hotel details for booking: {}", e.getMessage());
-                // Continue without hotel details - booking info is still available
+                logger.warn("Failed to fetch hotel details: {}", e.getMessage());
             }
+        }
+
+        // Enhance BookResponseDto with info from Booking database entity
+        if (dto != null && dto.getData() != null) {
+            BookResponseDto.BookDataDto bookData = dto.getData();
+
+            // Set booking entity fields
+            bookData.setClientReference(booking.getId());
+
+            // Override with database values if they exist (database is source of truth)
+            if (booking.getStatus() != null) {
+                bookData.setStatus(booking.getStatus());
+            }
+            if (booking.getPrice() != null) {
+                bookData.setPrice(booking.getPrice());
+            }
+            if (booking.getCurrency() != null) {
+                bookData.setCurrency(booking.getCurrency());
+            }
+
+            // Set holder info in guest DTO
+            if (booking.getHolderFirstName() != null || booking.getHolderLastName() != null ||
+                    booking.getHolderEmail() != null || booking.getHolderPhone() != null) {
+
+                BookResponseDto.GuestContactDto guestDto = bookData.getGuest();
+                if (guestDto == null) {
+                    guestDto = new BookResponseDto.GuestContactDto();
+                    bookData.setGuest(guestDto);
+                }
+
+                if (booking.getHolderFirstName() != null) {
+                    guestDto.setFirstName(booking.getHolderFirstName());
+                }
+                if (booking.getHolderLastName() != null) {
+                    guestDto.setLastName(booking.getHolderLastName());
+                }
+                if (booking.getHolderEmail() != null) {
+                    guestDto.setEmail(booking.getHolderEmail());
+                }
+                if (booking.getHolderPhone() != null) {
+                    guestDto.setPhone(booking.getHolderPhone());
+                }
+            }
+
+            logger.debug("Enhanced booking response with database information");
         }
 
         return dto;

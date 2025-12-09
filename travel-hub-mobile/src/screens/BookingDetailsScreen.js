@@ -7,12 +7,12 @@ import {
     Image,
     TouchableOpacity,
     ActivityIndicator,
-    SafeAreaView,
     Dimensions,
     Platform,
     Linking,
     Alert
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { format } from 'date-fns';
@@ -22,16 +22,22 @@ import { ApiService } from '../services/api.service';
 const { width } = Dimensions.get('window');
 
 export const BookingDetailsScreen = ({ route, navigation }) => {
-    const { bookingId } = route.params;
+    // Support both 'id' (from MyBookings) and 'bookingId' (from BookingSuccess)
+    const bookingId = route.params?.id || route.params?.bookingId; // Database ID (clientReference)
     const [booking, setBooking] = useState(null);
     const [hotelDetails, setHotelDetails] = useState(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         fetchData();
-    }, []);
+    }, [bookingId]);
 
     const fetchData = async () => {
+        if (!bookingId) {
+            Alert.alert('Erreur', 'ID de réservation manquant');
+            setLoading(false);
+            return;
+        }
         try {
             // Fetch booking details (now includes hotel information)
             const bookingResponse = await ApiService.getBooking(bookingId);
@@ -67,10 +73,10 @@ export const BookingDetailsScreen = ({ route, navigation }) => {
     }
 
     const room = booking.rooms && booking.rooms.length > 0 ? booking.rooms[0] : null;
-    // Use hotel image from booking response (now includes hotel info)
-    const hotelImage = hotelDetails?.images && hotelDetails.images.length > 0
-        ? hotelDetails.images[0].url
-        : hotelDetails?.mainPhoto || hotelDetails?.thumbnail || 'https://via.placeholder.com/400x200';
+    // Use hotel image from booking response (same priority as MyBookingsScreen)
+    const hotelImage = hotelDetails?.thumbnail || hotelDetails?.mainPhoto ||
+        (hotelDetails?.images && hotelDetails.images.length > 0 ? hotelDetails.images[0].url : null) ||
+        'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800';
 
     // Format dates in French: "07 Décembre"
     const formatDateFrench = (dateStr) => {
@@ -97,7 +103,11 @@ export const BookingDetailsScreen = ({ route, navigation }) => {
         hotelDetails?.checkinCheckoutTimes?.checkinFrom,
         hotelDetails?.checkinCheckoutTimes?.checkinTo
     );
-    const checkoutTime = hotelDetails?.checkinCheckoutTimes?.checkout || '12h00';
+    // Use same format for checkout: "14h00 - 00h00"
+    const checkoutTime = formatTimeRange(
+        hotelDetails?.checkinCheckoutTimes?.checkoutFrom,
+        hotelDetails?.checkinCheckoutTimes?.checkoutTo
+    ) || '14h00 - 00h00';
 
     // Format price: "4.359,00 DH"
     const formatPrice = (price, currency) => {
@@ -139,8 +149,6 @@ export const BookingDetailsScreen = ({ route, navigation }) => {
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
                     <Ionicons name="arrow-back" size={24} color="#1F2937" />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Confirmation</Text>
-                <View style={{ width: 40 }} />
             </View>
 
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -160,7 +168,9 @@ export const BookingDetailsScreen = ({ route, navigation }) => {
                 <View style={styles.section}>
                     <View style={styles.dateCard}>
                         <View style={styles.dateItem}>
-                            <Ionicons name="time-outline" size={24} color="#6B7280" />
+                            <View style={styles.dateIconContainer}>
+                                <Ionicons name="time-outline" size={20} color="#6B7280" />
+                            </View>
                             <View style={styles.dateContent}>
                                 <Text style={styles.dateLabel}>Check in</Text>
                                 <Text style={styles.dateValue}>{checkinDate}</Text>
@@ -169,7 +179,9 @@ export const BookingDetailsScreen = ({ route, navigation }) => {
                         </View>
                         <View style={styles.dateDivider} />
                         <View style={styles.dateItem}>
-                            <Ionicons name="time-outline" size={24} color="#6B7280" />
+                            <View style={styles.dateIconContainer}>
+                                <Ionicons name="time-outline" size={20} color="#6B7280" />
+                            </View>
                             <View style={styles.dateContent}>
                                 <Text style={styles.dateLabel}>Check out</Text>
                                 <Text style={styles.dateValue}>{checkoutDate}</Text>
@@ -231,7 +243,7 @@ export const BookingDetailsScreen = ({ route, navigation }) => {
                                 }
                             }}
                         >
-                            <Ionicons name="expand-outline" size={20} color="#1F2937" />
+                            <Ionicons name="resize-outline" size={20} color="#1F2937" />
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -252,11 +264,11 @@ export const BookingDetailsScreen = ({ route, navigation }) => {
                                     {room.roomName || '1 x Chambre Supérieure, 1 grand lit'}
                                 </Text>
                                 <View style={styles.roomDetailsRow}>
-                                    <Ionicons name="bed-outline" size={16} color="#6B7280" />
+                                    <Ionicons name="people-outline" size={16} color="#6B7280" />
                                     <Text style={styles.roomDetailText}>2 personnes</Text>
                                 </View>
                                 <View style={styles.roomDetailsRow}>
-                                    <Ionicons name="home-outline" size={16} color="#6B7280" />
+                                    <Ionicons name="square-outline" size={16} color="#6B7280" />
                                     <Text style={styles.roomDetailText}>30 m²</Text>
                                 </View>
                                 <View style={styles.cancellationRow}>
@@ -463,9 +475,9 @@ const styles = StyleSheet.create({
         color: '#FFF',
         fontSize: 24,
         fontWeight: '700',
-        textShadowColor: 'rgba(0, 0, 0, 0.5)',
-        textShadowOffset: { width: 0, height: 1 },
-        textShadowRadius: 3,
+        textShadowColor: 'rgba(0, 0, 0, 0.75)',
+        textShadowOffset: { width: 0, height: 2 },
+        textShadowRadius: 4,
     },
     section: {
         marginBottom: 24,
@@ -488,6 +500,14 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingVertical: 12,
     },
+    dateIconContainer: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: '#F3F4F6',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
     dateContent: {
         flex: 1,
         marginLeft: 12,
@@ -496,7 +516,7 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: '#9CA3AF',
         marginBottom: 4,
-        textTransform: 'uppercase',
+        textTransform: 'none',
     },
     dateValue: {
         fontSize: 16,
@@ -512,9 +532,10 @@ const styles = StyleSheet.create({
         width: 1,
         height: 40,
         backgroundColor: '#E5E7EB',
-        marginLeft: 36,
+        marginLeft: 52,
         marginVertical: 8,
         borderStyle: 'dashed',
+        borderWidth: 1,
     },
     // Map Section
     mapContainer: {
@@ -534,10 +555,10 @@ const styles = StyleSheet.create({
         top: 12,
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: 'rgba(0, 0, 0, 0.6)',
+        backgroundColor: 'rgba(0, 0, 0, 0.7)',
         paddingHorizontal: 12,
-        paddingVertical: 8,
-        borderRadius: 8,
+        paddingVertical: 10,
+        borderRadius: 12,
         maxWidth: width - 100,
     },
     mapPinIcon: {

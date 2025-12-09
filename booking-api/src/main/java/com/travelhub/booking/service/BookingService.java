@@ -15,7 +15,7 @@ public interface BookingService {
 
     BookResponseDto submitBooking(BookingInitiationRequestDto request);
 
-    BookResponseDto getBooking(String bookingId);
+    BookResponseDto getBooking(String id);
 
     BookingListResponseDto listBookings();
 }

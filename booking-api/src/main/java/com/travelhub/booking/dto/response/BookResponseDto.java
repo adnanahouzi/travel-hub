@@ -35,6 +35,7 @@ public class BookResponseDto {
 
     public static class BookDataDto {
         private String bookingId;
+        private String clientReference;
         private String hotelConfirmationCode;
         private String reference;
         private String status;
@@ -62,6 +63,14 @@ public class BookResponseDto {
 
         public void setHotelConfirmationCode(String hotelConfirmationCode) {
             this.hotelConfirmationCode = hotelConfirmationCode;
+        }
+
+        public String getClientReference() {
+            return clientReference;
+        }
+
+        public void setClientReference(String clientReference) {
+            this.clientReference = clientReference;
         }
 
         public String getReference() {

@@ -8,10 +8,10 @@ import {
     Image,
     ActivityIndicator,
     ImageBackground,
-    SafeAreaView,
     Platform,
     Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { ApiService } from '../services/api.service';
 import { format } from 'date-fns';
@@ -78,7 +78,8 @@ export const MyBookingsScreen = ({ navigation }) => {
     };
 
     const handleBookingPress = (booking) => {
-        navigation.navigate('BookingDetails', { bookingId: booking.bookingId });
+        // Use clientReference which is the database ID, not bookingId which is the LiteAPI ID
+        navigation.navigate('BookingDetails', { id: booking.clientReference });
     };
 
     const handleBookAgain = (booking) => {

@@ -7,8 +7,8 @@ import {
     StyleSheet,
     Alert,
     ActivityIndicator,
-    SafeAreaView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { format, differenceInDays } from 'date-fns';
 import { fr } from 'date-fns/locale';
