@@ -1,8 +1,9 @@
 package com.travelhub.booking.controller;
 
 import com.travelhub.booking.dto.request.PrebookRequestDto;
-import com.travelhub.booking.dto.response.BatchPrebookResponseDto;
+import com.travelhub.booking.dto.response.PrebookResponseDto;
 import com.travelhub.booking.dto.response.BookResponseDto;
+import com.travelhub.booking.dto.response.BookingListResponseDto;
 import com.travelhub.booking.service.BookingService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -16,8 +17,6 @@ import com.travelhub.booking.model.Booking;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/booking")
@@ -41,14 +40,14 @@ public class BookingController {
                         @ApiResponse(responseCode = "404", description = "Offer not found or no longer available"),
                         @ApiResponse(responseCode = "500", description = "Internal server error")
         })
-        public ResponseEntity<BatchPrebookResponseDto> prebook(
-                        @Parameter(description = "List of prebook requests containing offer IDs", required = true) @RequestBody List<PrebookRequestDto> requests) {
-                logger.info("Received batch prebook request - count: {}", requests.size());
+        public ResponseEntity<PrebookResponseDto> prebook(
+                        @Parameter(description = "Prebook request containing offer ID", required = true) @RequestBody PrebookRequestDto request) {
+                logger.info("Received prebook request for offerId: {}", request.getOfferId());
 
-                BatchPrebookResponseDto response = bookingService.prebook(requests);
+                PrebookResponseDto response = bookingService.prebook(request);
 
-                logger.info("Batch prebook successful - count: {}, total: {} {}",
-                                response.getResponses().size(), response.getTotalAmount(), response.getCurrency());
+                logger.info("Prebook successful - offerId: {}",
+                                request.getOfferId());
 
                 return ResponseEntity.ok(response);
         }
@@ -82,19 +81,19 @@ public class BookingController {
         }
 
         @GetMapping("/{bookingId}")
-        public ResponseEntity<com.travelhub.booking.dto.response.BookResponseDto> getBooking(
+        public ResponseEntity<BookResponseDto> getBooking(
                         @PathVariable String bookingId) {
                 return ResponseEntity.ok(bookingService.getBooking(bookingId));
         }
 
         @GetMapping("/list")
         @Operation(summary = "List bookings", description = "List bookings for a guest or client reference")
-        public ResponseEntity<com.travelhub.booking.dto.response.BookingListResponseDto> listBookings(
+        public ResponseEntity<BookingListResponseDto> listBookings(
                         @RequestParam(required = false) String guestId,
                         @RequestParam(required = false) String clientReference) {
                 logger.info("Received list bookings request - guestId: {}, clientReference: {}", guestId,
                                 clientReference);
-                com.travelhub.booking.dto.response.BookingListResponseDto response = bookingService
+                BookingListResponseDto response = bookingService
                                 .listBookings(guestId, clientReference);
                 logger.info("List bookings request completed - bookings found: {}",
                                 response != null && response.getData() != null ? response.getData().size() : 0);

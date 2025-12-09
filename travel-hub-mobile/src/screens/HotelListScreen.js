@@ -126,14 +126,23 @@ export const HotelListScreen = ({ navigation }) => {
   };
 
   const renderHotelCard = ({ item }) => {
-    // Extract rate information
-    const firstRate = item.roomTypes?.[0]?.rates?.[0];
-    const totalPrice = firstRate?.retailRate?.total?.[0]?.amount || 0;
-    const currency = firstRate?.retailRate?.total?.[0]?.currency || 'DH';
+    const firstRoomType = item.roomTypes?.[0];
+    const firstRate = firstRoomType?.rates?.[0];
+    const totalPrice = firstRoomType?.suggestedSellingPrice.amount || 0;
+    const currency = firstRoomType?.suggestedSellingPrice.currency || 'DH';
+
+    // Points calculation (10% of price)
+    const points = Math.round(totalPrice * 0.1);
 
     const reviewScore = item.rating || 0;
     const reviewCount = item.reviewCount ?? 0;
     const reviewText = reviewScore >= 8 ? 'Very good' : reviewScore >= 7 ? 'Good' : 'Pleasant';
+    
+    // Check if breakfast is included (boardType === "BI")
+    const hasBreakfast = firstRate?.boardType === "BI";
+    
+    // Check if free cancellation is available (refundableTag === "RFN")
+    const hasFreeCancellation = firstRate?.cancellationPolicies?.refundableTag === "RFN";
 
     return (
       <TouchableOpacity
@@ -157,7 +166,7 @@ export const HotelListScreen = ({ navigation }) => {
           {/* Review Text */}
           <View style={styles.reviewTextContainer}>
             <Text style={styles.reviewText}>{reviewText}</Text>
-            <Text style={styles.reviewCount}>{reviewCount.toLocaleString()} Avis</Text>
+            <Text style={styles.reviewCount}> | {reviewCount.toLocaleString()} Avis</Text>
           </View>
 
           {/* Favorite Button */}
@@ -173,40 +182,53 @@ export const HotelListScreen = ({ navigation }) => {
               {item.name}
             </Text>
             <View style={styles.starRatingContainer}>
-              <Ionicons name="star" size={16} color="#F59E0B" />
-              <Text style={styles.starRating}>{item.starRating || 5}</Text>
+              {[...Array(item.starRating || 5)].map((_, i) => (
+                <Ionicons key={i} name="star" size={12} color="#F59E0B" />
+              ))}
             </View>
           </View>
 
-          <View style={styles.priceRow}>
-            <View style={styles.leftColumn}>
-              {/* Address */}
-              <View style={styles.addressRow}>
-                <Ionicons name="location-outline" size={14} color="#6B7280" />
-                <Text style={styles.addressText} numberOfLines={1}>
-                  {item.address || 'Marrakech'}
-                </Text>
-              </View>
+          {/* Location */}
+          <View style={styles.addressRow}>
+            <Ionicons name="location-outline" size={14} color="#6B7280" />
+            <Text style={styles.addressText} numberOfLines={1}>
+              {item.distanceText || item.address || 'Marrakech'}
+            </Text>
+          </View>
 
-              {/* Amenities */}
-              <View style={styles.amenitiesContainer}>
-                <View style={styles.amenityRow}>
-                  <Ionicons name="cafe-outline" size={14} color="#10B981" />
-                  <Text style={styles.amenityText}>Petit-déjeuner offert</Text>
-                </View>
-                <View style={styles.amenityRow}>
-                  <Ionicons name="calendar-outline" size={14} color="#6B7280" />
-                  <Text style={styles.amenityText}>Annulation gratuite</Text>
-                </View>
-              </View>
+          {/* Price Section */}
+          <View style={styles.priceSection}>
+            <View>
+              <Text style={styles.priceLabel}>Prix <Text style={styles.priceSubLabel}>(à partir de)</Text></Text>
             </View>
+            <Text style={styles.price}>
+              {totalPrice.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {currency}
+            </Text>
+          </View>
 
-            <View style={styles.priceColumn}>
-              <Text style={styles.price}>
-                {totalPrice.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {currency}
-              </Text>
-              <Text style={styles.perNight}>La nuitée</Text>
+          {/* Points */}
+          <View style={styles.pointsSection}>
+            <Text style={styles.pointsLabel}>Points que vous gagnez</Text>
+            <View style={styles.pointsValue}>
+              <Ionicons name="flash" size={16} color="#F59E0B" />
+              <Text style={styles.pointsNumber}>{points}</Text>
             </View>
+          </View>
+
+          {/* Amenities */}
+          <View style={styles.amenitiesContainer}>
+            {hasBreakfast && (
+              <View style={styles.amenityRow}>
+                <Ionicons name="cafe-outline" size={16} color="#10B981" />
+                <Text style={styles.amenityText}>Petit-déjeuner offert</Text>
+              </View>
+            )}
+            {hasFreeCancellation && (
+              <View style={styles.amenityRow}>
+                <Ionicons name="calendar-outline" size={16} color="#EF4444" />
+                <Text style={styles.amenityText}>Annulation gratuite</Text>
+              </View>
+            )}
           </View>
         </View>
       </TouchableOpacity>
@@ -401,12 +423,7 @@ const styles = StyleSheet.create({
   starRatingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-  },
-  starRating: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#1F2937',
+    gap: 2,
   },
   priceRow: {
     flexDirection: 'row',
@@ -419,7 +436,8 @@ const styles = StyleSheet.create({
   addressRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 12,
+    marginTop: 8,
   },
   addressText: {
     fontSize: 13,
@@ -427,12 +445,56 @@ const styles = StyleSheet.create({
     marginLeft: 6,
     flex: 1,
   },
+  priceSection: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  priceLabel: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  priceSubLabel: {
+    fontSize: 12,
+    color: '#9CA3AF',
+  },
+  price: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#1F2937',
+  },
+  pointsSection: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  pointsLabel: {
+    fontSize: 13,
+    color: '#6B7280',
+  },
+  pointsValue: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  pointsNumber: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#D97706',
+  },
   amenitiesContainer: {
-    gap: 6,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 4,
   },
   amenityRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginRight: 12,
   },
   amenityText: {
     fontSize: 12,

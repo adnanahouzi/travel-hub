@@ -1,11 +1,15 @@
 package com.travelhub.booking.service.impl;
 
+import com.travelhub.booking.dto.request.BookingInitiationRequestDto;
 import com.travelhub.booking.dto.request.PrebookRequestDto;
-import com.travelhub.booking.dto.response.BatchPrebookResponseDto;
 import com.travelhub.booking.dto.response.BookResponseDto;
 import com.travelhub.booking.dto.response.BookingListResponseDto;
 import com.travelhub.booking.dto.response.PrebookResponseDto;
 import com.travelhub.booking.mapper.BookingMapper;
+import com.travelhub.booking.model.Booking;
+import com.travelhub.booking.model.BookingSimulation;
+import com.travelhub.booking.repository.BookingRepository;
+import com.travelhub.booking.repository.BookingSimulationRepository;
 import com.travelhub.booking.service.BookingService;
 import com.travelhub.connectors.nuitee.NuiteeApiClient;
 import com.travelhub.connectors.nuitee.dto.request.BookRequest;
@@ -17,16 +21,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import java.math.BigDecimal;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
-
-import com.travelhub.booking.dto.request.BookingInitiationRequestDto;
-import com.travelhub.booking.model.Booking;
-import com.travelhub.booking.model.BookingSimulation;
-import com.travelhub.booking.repository.BookingRepository;
-import com.travelhub.booking.repository.BookingSimulationRepository;
 
 @Service
 public class BookingServiceImpl implements BookingService {
@@ -46,79 +41,47 @@ public class BookingServiceImpl implements BookingService {
     }
 
     @Override
-    public BatchPrebookResponseDto prebook(List<PrebookRequestDto> requestDtos) {
-        logger.info("Starting batch prebook process for {} requests", requestDtos.size());
+    public PrebookResponseDto prebook(PrebookRequestDto requestDto) {
+        logger.info("Starting prebook process for offerId: {}", requestDto.getOfferId());
 
-        List<PrebookResponseDto> responses = new ArrayList<>();
-        BigDecimal totalAmount = BigDecimal.ZERO;
-        BigDecimal totalIncludedTaxes = BigDecimal.ZERO;
-        BigDecimal totalExcludedTaxes = BigDecimal.ZERO;
-        String currency = "MAD"; // Default, will be updated from response
+        try {
+            // Map booking-api DTO to connector DTO
+            PrebookRequest connectorRequest = bookingMapper.toPrebookRequest(requestDto);
 
-        for (PrebookRequestDto requestDto : requestDtos) {
-            try {
-                logger.info("Processing prebook for offerId: {}", requestDto.getOfferId());
+            // Call connector
+            PrebookResponse connectorResponse = nuiteeApiClient.prebook(connectorRequest);
+            logger.debug("Received prebook response from connector");
 
-                // Map booking-api DTO to connector DTO
-                PrebookRequest connectorRequest = bookingMapper.toPrebookRequest(requestDto);
+            // Map connector response back to booking-api DTO
+            PrebookResponseDto responseDto = bookingMapper.toPrebookResponseDto(connectorResponse);
 
-                // Call connector
-                PrebookResponse connectorResponse = nuiteeApiClient.prebook(connectorRequest);
-                logger.debug("Received prebook response from connector");
+            // Create and save booking simulation
+            BookingSimulation simulation = new BookingSimulation();
 
-                // Map connector response back to booking-api DTO
-                PrebookResponseDto responseDto = bookingMapper.toPrebookResponseDto(connectorResponse);
-                responses.add(responseDto);
+            if (responseDto.getData() != null) {
+                simulation.setTotalAmount(responseDto.getData().getSuggestedSellingPrice());
+                simulation.setTotalIncludedTaxes(responseDto.getData().getTotalIncludedTaxes());
+                simulation.setTotalExcludedTaxes(responseDto.getData().getTotalExcludedTaxes());
+                simulation.setCurrency(responseDto.getData().getCurrency());
 
-                // Accumulate total amount
-                if (responseDto.getData() != null) {
-                    BigDecimal price = responseDto.getData().getPrice();
-                    if (price != null) {
-                        totalAmount = totalAmount.add(price);
-                    }
-                    if (responseDto.getData().getCurrency() != null) {
-                        currency = responseDto.getData().getCurrency();
-                    }
-                    if (responseDto.getData().getTotalIncludedTaxes() != null) {
-                        totalIncludedTaxes = totalIncludedTaxes.add(responseDto.getData().getTotalIncludedTaxes());
-                    }
-                    if (responseDto.getData().getTotalExcludedTaxes() != null) {
-                        totalExcludedTaxes = totalExcludedTaxes.add(responseDto.getData().getTotalExcludedTaxes());
-                    }
+                // Store single prebook ID
+                if (responseDto.getData().getPrebookId() != null) {
+                    simulation.setConnectorPrebookIds(List.of(responseDto.getData().getPrebookId()));
                 }
-
-            } catch (Exception e) {
-                logger.error("Error processing prebook for offerId: {}", requestDto.getOfferId(), e);
-                throw new RuntimeException("Failed to prebook offer: " + requestDto.getOfferId(), e);
             }
+
+            simulation = bookingSimulationRepository.save(simulation);
+            logger.info("Created booking simulation with ID: {}", simulation.getId());
+
+            // Add simulation ID to response
+            responseDto.setSimulationId(simulation.getId());
+
+            return responseDto;
+
+        } catch (Exception e) {
+            logger.error("Error processing prebook for offerId: {}", requestDto.getOfferId(), e);
+            throw new RuntimeException("Failed to prebook offer: " + requestDto.getOfferId(), e);
         }
-
-        // Create and save booking simulation
-        BookingSimulation simulation = new BookingSimulation();
-        simulation.setTotalAmount(totalAmount);
-        simulation.setTotalIncludedTaxes(totalIncludedTaxes);
-        simulation.setTotalExcludedTaxes(totalExcludedTaxes);
-        simulation.setCurrency(currency);
-
-        // Extract connector prebook IDs from responses
-        List<String> connectorPrebookIds = responses.stream()
-                .map(r -> r.getData() != null ? r.getData().getPrebookId() : null)
-                .filter(Objects::nonNull)
-                .toList();
-        simulation.setConnectorPrebookIds(connectorPrebookIds);
-
-        simulation = bookingSimulationRepository.save(simulation);
-        logger.info("Created booking simulation with ID: {}", simulation.getId());
-
-        BatchPrebookResponseDto batchResponse = new BatchPrebookResponseDto();
-        batchResponse.setSimulationId(simulation.getId());
-        batchResponse.setResponses(responses);
-        batchResponse.setTotalAmount(totalAmount);
-        batchResponse.setTotalIncludedTaxes(totalIncludedTaxes);
-        batchResponse.setTotalExcludedTaxes(totalExcludedTaxes);
-        batchResponse.setCurrency(currency);
-
-        return batchResponse;
     }
 
     @Override

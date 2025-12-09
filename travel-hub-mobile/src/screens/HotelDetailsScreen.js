@@ -247,9 +247,9 @@ export const HotelDetailsScreen = ({ navigation }) => {
 
   useEffect(() => {
     if (selectedHotel) {
-     }
+    }
     if (hotelDetails) {
-     }
+    }
   }, [selectedHotel, hotelDetails]);
 
   // Collect all available images
@@ -264,10 +264,10 @@ export const HotelDetailsScreen = ({ navigation }) => {
     images = ['https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800'];
   }
 
-  // Calculate total price from first available rate for display
-  const displayRate = hotelDetails?.rates?.[0];
-  const totalPrice = displayRate?.retailRate?.total?.[0]?.amount || 0;
-  const currency = displayRate?.retailRate?.total?.[0]?.currency || 'DH';
+  // Get lowest price from first grouped rate (backend sorts by price ascending)
+  const firstGroup = hotelDetails?.groupedRates?.[0];
+  const totalPrice = firstGroup?.startingPrice?.suggestedSellingPrice?.[0]?.amount || 0;
+  const currency = firstGroup?.startingPrice?.suggestedSellingPrice?.[0]?.currency || 'DH';
 
   // Build complete address
   const fullAddress = [
@@ -723,7 +723,7 @@ export const HotelDetailsScreen = ({ navigation }) => {
           onPress={() => {
             navigation.navigate('RoomList', {
               hotelId: hotel.hotelId,
-              rates: hotelDetails?.rates || [],
+              groupedRates: hotelDetails?.groupedRates || [],
               reviewsSummary: {
                 total: reviews?.total || hotel.reviewCount || 0,
                 rating: hotel.rating || 0

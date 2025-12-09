@@ -82,8 +82,9 @@ public class BookingMapper {
         response.setEmail(hotelData.getEmail());
         response.setCheckinCheckoutTimes(toCheckinCheckoutTimesDto(hotelData.getCheckinCheckoutTimes()));
 
-        // Map rates and enrich with room details from hotel data
-        response.setRates(enrichRatesWithRoomDetails(roomTypes, hotelData.getRooms()));
+        // Group rates by offerId with room breakdown, then by configuration
+        List<GroupedRateDto> offers = groupByOffer(roomTypes, hotelData.getRooms());
+        response.setGroupedRates(groupRatesByConfiguration(offers));
 
         return response;
     }
@@ -128,40 +129,204 @@ public class BookingMapper {
         return dto;
     }
 
-    private List<RateDto> enrichRatesWithRoomDetails(
+    /**
+     * Groups rates by offerId, creating a room breakdown with counts for each
+     * offer.
+     * Each RoomType (offer) becomes a GroupedRateDto with its rooms aggregated.
+     */
+    private List<GroupedRateDto> groupByOffer(
             List<com.travelhub.connectors.nuitee.dto.response.RoomType> roomTypes, List<Room> hotelRooms) {
         if (roomTypes == null) {
             return null;
         }
 
-        // For each RoomType, we need to map its rates and enrich with room details
         return roomTypes.stream()
-                .flatMap(roomType -> {
-                    if (roomType.getRates() == null) {
-                        return java.util.stream.Stream.empty();
+                .map(roomType -> {
+                    GroupedRateDto grouped = new GroupedRateDto();
+                    grouped.setOfferId(roomType.getOfferId());
+
+                    // Get rates for this offer
+                    List<Rate> rates = roomType.getRates();
+                    if (rates == null || rates.isEmpty()) {
+                        grouped.setRoomBreakdown(new java.util.ArrayList<>());
+                        return grouped;
                     }
-                    return roomType.getRates().stream().map(rate -> {
+
+                    // Use first rate for offer-level properties
+                    Rate firstRate = rates.get(0);
+                    grouped.setBoardType(firstRate.getBoardType());
+                    grouped.setBoardName(firstRate.getBoardName());
+                    grouped.setPerks(firstRate.getPerks());
+                    grouped.setPaymentTypes(firstRate.getPaymentTypes());
+                    grouped.setCancellationPolicies(mapCancellationPolicyDetail(firstRate.getCancellationPolicies()));
+
+                    // Use offer-level retail rate
+                    grouped.setRetailRate(mapOfferPricesToRetailRateDetail(roomType));
+
+                    // Group rates by mappedRoomId to create room breakdown
+                    java.util.Map<Long, List<RateDto>> ratesByRoom = new java.util.LinkedHashMap<>();
+                    for (Rate rate : rates) {
                         RateDto rateDto = toRateDto(rate);
                         if (rateDto != null) {
-                            // Set offerId from the parent RoomType
                             rateDto.setOfferId(roomType.getOfferId());
 
-                            // Enrich with room details from hotel data
+                            // Enrich with room details
                             if (hotelRooms != null && rate.getMappedRoomId() != null) {
-                                Long mappedRoomId = rate.getMappedRoomId();
                                 Room matchingRoom = hotelRooms.stream()
-                                        .filter(room -> mappedRoomId.equals(room.getId().longValue()))
+                                        .filter(room -> rate.getMappedRoomId().equals(room.getId().longValue()))
                                         .findFirst()
                                         .orElse(null);
                                 if (matchingRoom != null) {
                                     enrichRateWithRoomDetails(rateDto, matchingRoom);
                                 }
                             }
+
+                            Long roomKey = rate.getMappedRoomId() != null ? rate.getMappedRoomId() : 0L;
+                            ratesByRoom.computeIfAbsent(roomKey, k -> new java.util.ArrayList<>()).add(rateDto);
                         }
-                        return rateDto;
-                    });
+                    }
+
+                    // Convert to room breakdown
+                    List<RoomBreakdownDto> roomBreakdown = ratesByRoom.entrySet().stream()
+                            .map(entry -> {
+                                List<RateDto> roomRates = entry.getValue();
+                                RateDto firstRoomRate = roomRates.get(0);
+
+                                RoomBreakdownDto breakdown = new RoomBreakdownDto();
+                                breakdown.setMappedRoomId(entry.getKey() != 0L ? entry.getKey() : null);
+                                breakdown.setName(firstRoomRate.getName());
+                                breakdown.setCount(roomRates.size());
+                                breakdown.setAdultCount(firstRoomRate.getAdultCount());
+                                breakdown.setChildCount(firstRoomRate.getChildCount());
+                                breakdown.setRoomSize(firstRoomRate.getRoomSize());
+                                breakdown.setRoomSizeUnit(firstRoomRate.getRoomSizeUnit());
+                                breakdown.setRoomPhotos(firstRoomRate.getRoomPhotos());
+                                breakdown.setRates(roomRates);
+
+                                return breakdown;
+                            })
+                            .collect(Collectors.toList());
+
+                    grouped.setRoomBreakdown(roomBreakdown);
+                    return grouped;
                 })
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Groups offers by unique room configuration (name and count).
+     */
+    private List<RoomConfigurationGroupDto> groupRatesByConfiguration(List<GroupedRateDto> offers) {
+        if (offers == null || offers.isEmpty()) {
+            return new java.util.ArrayList<>();
+        }
+
+        java.util.Map<String, List<GroupedRateDto>> groupedByConfig = new java.util.HashMap<>();
+
+        for (GroupedRateDto offer : offers) {
+            String key = getRoomConfigKey(offer);
+            groupedByConfig.computeIfAbsent(key, k -> new java.util.ArrayList<>()).add(offer);
+        }
+
+        return groupedByConfig.values().stream()
+                .map(this::mapToConfigurationGroup)
+                .sorted(java.util.Comparator.comparing(g -> {
+                    RoomConfigurationGroupDto group = (RoomConfigurationGroupDto) g;
+                    if (group.getStartingPrice() != null && group.getStartingPrice().getTotal() != null
+                            && !group.getStartingPrice().getTotal().isEmpty()) {
+                        return group.getStartingPrice().getTotal().get(0).getAmount();
+                    }
+                    return BigDecimal.ZERO;
+                }))
+                .collect(Collectors.toList());
+    }
+
+    private String getRoomConfigKey(GroupedRateDto offer) {
+        if (offer.getRoomBreakdown() == null) {
+            return "unknown";
+        }
+        // Sort specifically to ensure consistent key (e.g. "Twin + Double" == "Double +
+        // Twin")
+        return offer.getRoomBreakdown().stream()
+                .sorted(java.util.Comparator.comparing(RoomBreakdownDto::getMappedRoomId,
+                        java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder())))
+                .map(r -> r.getCount() + "x" + (r.getMappedRoomId() != null ? r.getMappedRoomId() : "0"))
+                .collect(Collectors.joining("|"));
+    }
+
+    private RoomConfigurationGroupDto mapToConfigurationGroup(List<GroupedRateDto> groupOffers) {
+        if (groupOffers == null || groupOffers.isEmpty()) {
+            return null;
+        }
+
+        // Sort offers by price to find "starting from"
+        groupOffers.sort((o1, o2) -> {
+            BigDecimal p1 = (o1.getRetailRate() != null && o1.getRetailRate().getTotal() != null
+                    && !o1.getRetailRate().getTotal().isEmpty())
+                            ? o1.getRetailRate().getTotal().get(0).getAmount()
+                            : null;
+
+            BigDecimal p2 = (o2.getRetailRate() != null && o2.getRetailRate().getTotal() != null
+                    && !o2.getRetailRate().getTotal().isEmpty())
+                            ? o2.getRetailRate().getTotal().get(0).getAmount()
+                            : null;
+
+            if (p1 == null && p2 == null)
+                return 0;
+            if (p1 == null)
+                return 1;
+            if (p2 == null)
+                return -1;
+            return p1.compareTo(p2);
+        });
+
+        GroupedRateDto bestOffer = groupOffers.get(0);
+        RoomConfigurationGroupDto dto = new RoomConfigurationGroupDto();
+
+        dto.setConfigurationKey(getRoomConfigKey(bestOffer));
+        dto.setName(getOfferDisplayName(bestOffer));
+        dto.setRoomBreakdown(bestOffer.getRoomBreakdown());
+        dto.setStartingPrice(bestOffer.getRetailRate());
+        dto.setOffers(groupOffers);
+
+        return dto;
+    }
+
+    private String getOfferDisplayName(GroupedRateDto offer) {
+        if (offer.getRoomBreakdown() != null && !offer.getRoomBreakdown().isEmpty()) {
+            if (offer.getRoomBreakdown().size() == 1 && offer.getRoomBreakdown().get(0).getCount() == 1) {
+                return offer.getRoomBreakdown().get(0).getName();
+            }
+            return offer.getRoomBreakdown().stream()
+                    .map(b -> b.getCount() + " x " + b.getName())
+                    .collect(Collectors.joining(" + "));
+        }
+        return "Offre de chambre";
+    }
+
+    /**
+     * Maps offer-level prices to RetailRateDetailDto.
+     */
+    private RetailRateDetailDto mapOfferPricesToRetailRateDetail(
+            com.travelhub.connectors.nuitee.dto.response.RoomType roomType) {
+        if (roomType == null) {
+            return null;
+        }
+
+        RetailRateDetailDto dto = new RetailRateDetailDto();
+        if (roomType.getOfferRetailRate() != null) {
+            dto.setTotal(java.util.Collections.singletonList(mapPrice(roomType.getOfferRetailRate())));
+        }
+        if (roomType.getSuggestedSellingPrice() != null) {
+            dto.setSuggestedSellingPrice(
+                    java.util.Collections.singletonList(mapPrice(roomType.getSuggestedSellingPrice())));
+        }
+        if (roomType.getOfferInitialPrice() != null) {
+            dto.setInitialPrice(java.util.Collections.singletonList(mapPrice(roomType.getOfferInitialPrice())));
+        }
+        // Taxes are not explicitly available at offer level in simple Price object,
+        // but Total includes them if the connector logic works as expected.
+        return dto;
     }
 
     private void enrichRateWithRoomDetails(RateDto rateDto, Room room) {
@@ -169,6 +334,7 @@ public class BookingMapper {
             return;
         }
         // Add detailed room information from hotel details to the rate
+        rateDto.setName(room.getRoomName()); // Use room name from hotel details, not from rate
         rateDto.setRoomDescription(room.getDescription());
         rateDto.setRoomSize(room.getRoomSizeSquare());
         rateDto.setRoomSizeUnit(room.getRoomSizeUnit());

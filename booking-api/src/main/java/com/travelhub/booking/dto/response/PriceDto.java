@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 
 public class PriceDto {
     private BigDecimal amount;
+    private Integer points;
     private String currency;
     private String source;
 
@@ -29,6 +30,14 @@ public class PriceDto {
 
     public void setSource(String source) {
         this.source = source;
+    }
+
+    public Integer getPoints() {
+        return points;
+    }
+
+    public void setPoints(Integer points) {
+        this.points = points;
     }
 }
 

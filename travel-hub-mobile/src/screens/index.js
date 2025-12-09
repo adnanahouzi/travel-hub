@@ -9,3 +9,4 @@ export { OtpVerificationScreen } from './OtpVerificationScreen';
 export { BookingSuccessScreen } from './BookingSuccessScreen';
 export { BookingDetailsScreen } from './BookingDetailsScreen';
 export { MyBookingsScreen } from './MyBookingsScreen';
+export { RoomRateSelectionScreen } from './RoomRateSelectionScreen';

@@ -65,8 +65,8 @@ public class HotelRateResponseDto {
     @Schema(description = "Check-in and check-out times")
     private CheckinCheckoutTimesDto checkinCheckoutTimes;
 
-    @Schema(description = "Available rates with enriched room details")
-    private List<RateDto> rates;
+    @Schema(description = "Grouped rates by room configuration")
+    private List<RoomConfigurationGroupDto> groupedRates;
 
     // Getters and Setters
 
@@ -222,12 +222,11 @@ public class HotelRateResponseDto {
         this.checkinCheckoutTimes = checkinCheckoutTimes;
     }
 
-    public List<RateDto> getRates() {
-        return rates;
+    public List<RoomConfigurationGroupDto> getGroupedRates() {
+        return groupedRates;
     }
 
-    public void setRates(List<RateDto> rates) {
-        this.rates = rates;
+    public void setGroupedRates(List<RoomConfigurationGroupDto> groupedRates) {
+        this.groupedRates = groupedRates;
     }
 }
-

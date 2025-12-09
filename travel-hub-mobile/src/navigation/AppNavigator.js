@@ -12,7 +12,8 @@ import {
   OtpVerificationScreen,
   BookingSuccessScreen,
   BookingDetailsScreen,
-  MyBookingsScreen
+  MyBookingsScreen,
+  RoomRateSelectionScreen
 } from '../screens';
 
 const Stack = createStackNavigator();
@@ -38,6 +39,7 @@ export const AppNavigator = () => {
         <Stack.Screen name="BookingSuccess" component={BookingSuccessScreen} />
         <Stack.Screen name="BookingDetails" component={BookingDetailsScreen} />
         <Stack.Screen name="MyBookings" component={MyBookingsScreen} />
+        <Stack.Screen name="RoomRateSelection" component={RoomRateSelectionScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

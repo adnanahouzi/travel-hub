@@ -22,22 +22,23 @@ import { TravelerInfoModal } from '../components';
 const { width } = Dimensions.get('window');
 
 export const BookingSummaryScreen = ({ navigation, route }) => {
-  const { selectedRooms, batchResponse, reviewsSummary } = route.params;
+  const { selectedRooms, prebookResponse, simulationId, reviewsSummary } = route.params;
   const { selectedHotel, searchParams } = useBooking();
 
-  // Data Mapping
-  const totalPrice = batchResponse.totalAmount || 0;
-  const currency = batchResponse.currency || 'MAD';
-  const prebookResponses = batchResponse.responses || [];
-  const prebookIds = prebookResponses.map(r => r.data?.prebookId).join(', ');
+  // Data Mapping - now using single prebookResponse instead of batch
+  const totalPrice = prebookResponse?.data?.suggestedSellingPrice || 0;
+  const currency = prebookResponse?.data?.currency || 'MAD';
+  const totalIncludedTaxes = prebookResponse?.data?.totalIncludedTaxes || 0;
+  const totalExcludedTaxes = prebookResponse?.data?.totalExcludedTaxes || 0;
+  const prebookId = prebookResponse?.data?.prebookId;
 
-  // Get T&Cs from the first response
-  const termsAndConditions = prebookResponses[0]?.data?.termsAndConditions;
+  // Get T&Cs from the response
+  const termsAndConditions = prebookResponse?.data?.termsAndConditions;
 
   const points = Math.round(totalPrice * 0.1); // 10% points
 
-  const checkinDate = new Date(prebookResponses[0]?.data?.checkin || searchParams.checkin);
-  const checkoutDate = new Date(prebookResponses[0]?.data?.checkout || searchParams.checkout);
+  const checkinDate = new Date(prebookResponse?.data?.checkin || searchParams.checkin);
+  const checkoutDate = new Date(prebookResponse?.data?.checkout || searchParams.checkout);
 
   // Formatting
   const formattedPrice = new Intl.NumberFormat('fr-MA', {
@@ -152,17 +153,17 @@ export const BookingSummaryScreen = ({ navigation, route }) => {
             <Text style={styles.priceValue}>{formattedPrice} {currency}</Text>
           </View>
 
-          {batchResponse.totalIncludedTaxes > 0 && (
+          {totalIncludedTaxes > 0 && (
             <View style={styles.taxRow}>
               <Text style={styles.taxLabel}>Taxes et frais inclus</Text>
-              <Text style={styles.taxValue}>{new Intl.NumberFormat('fr-MA', { minimumFractionDigits: 2 }).format(batchResponse.totalIncludedTaxes)} {currency}</Text>
+              <Text style={styles.taxValue}>{new Intl.NumberFormat('fr-MA', { minimumFractionDigits: 2 }).format(totalIncludedTaxes)} {currency}</Text>
             </View>
           )}
 
-          {batchResponse.totalExcludedTaxes > 0 && (
+          {totalExcludedTaxes > 0 && (
             <View style={styles.taxRow}>
               <Text style={styles.taxLabel}>Total à payer sur place</Text>
-              <Text style={styles.taxValue}>{new Intl.NumberFormat('fr-MA', { minimumFractionDigits: 2 }).format(batchResponse.totalExcludedTaxes)} {currency}</Text>
+              <Text style={styles.taxValue}>{new Intl.NumberFormat('fr-MA', { minimumFractionDigits: 2 }).format(totalExcludedTaxes)} {currency}</Text>
             </View>
           )}
 
@@ -226,88 +227,98 @@ export const BookingSummaryScreen = ({ navigation, route }) => {
           </TouchableOpacity>
         </View>
 
-        {prebookResponses.map((response, index) => {
-          // Extract rate details from the response
-          // Structure: response.data.roomTypes[0].rates[0]
-          const roomType = response.data?.roomTypes?.[0];
-          const rate = roomType?.rates?.[0];
+        {/* Display all rates from prebook response */}
+        {prebookResponse?.data?.roomTypes?.map((roomType, roomTypeIndex) => {
+          return roomType.rates?.map((rate, rateIndex) => {
+            if (!rate) return null;
 
+            const ratePrice = rate.retailRate?.suggestedSellingPrice?.[0]?.amount || 0;
+            const rateCurrency = rate.retailRate?.suggestedSellingPrice?.[0]?.currency || 'MAD';
 
-          if (!rate) return null;
+            // Calculate taxes per rate from taxesAndFees
+            let rateIncludedTaxes = 0;
+            let rateExcludedTaxes = 0;
 
-          const ratePrice = rate.retailRate?.total?.[0]?.amount || 0;
-          const rateCurrency = rate.retailRate?.total?.[0]?.currency || 'MAD';
-          const commission = rate.commission?.[0]?.amount || 0;
-          const commissionCurrency = rate.commission?.[0]?.currency || 'MAD';
+            if (rate.retailRate?.taxesAndFees) {
+              rate.retailRate.taxesAndFees.forEach(tax => {
+                if (tax.amount) {
+                  if (tax.included) {
+                    rateIncludedTaxes += tax.amount;
+                  } else {
+                    rateExcludedTaxes += tax.amount;
+                  }
+                }
+              });
+            }
 
-          return (
-            <View key={index} style={styles.roomCard}>
-              {/* Image removed as per request */}
-              <View style={styles.roomDetails}>
-                <Text style={styles.roomName}>{rate.name}</Text>
+            return (
+              <View key={`${roomTypeIndex}-${rateIndex}`} style={styles.roomCard}>
+                <View style={styles.roomDetails}>
+                  <Text style={styles.roomName}>{rate.name}</Text>
 
-                <View style={styles.roomSpecs}>
-                  <Ionicons name="bed-outline" size={14} color="#6B7280" />
-                  <Text style={styles.roomSpecText}>
-                    {(rate.adultCount || 0) + (rate.childCount || 0)} personnes
-                  </Text>
-                  {rate.boardName && (
-                    <>
-                      <View style={styles.specDot} />
-                      <Text style={styles.roomSpecText}>{rate.boardName}</Text>
-                    </>
-                  )}
-                </View>
-
-                <View style={styles.rateFinancials}>
-                  <Text style={styles.ratePrice}>
-                    Prix: {new Intl.NumberFormat('fr-MA', { minimumFractionDigits: 2 }).format(ratePrice)} {rateCurrency}
-                  </Text>
-
-                  {/* Taxes */}
-                  {response.data?.totalIncludedTaxes > 0 && (
-                    <Text style={styles.taxText}>
-                      Taxes et frais inclus: {new Intl.NumberFormat('fr-MA', { minimumFractionDigits: 2 }).format(response.data.totalIncludedTaxes)} {rateCurrency}
+                  <View style={styles.roomSpecs}>
+                    <Ionicons name="bed-outline" size={14} color="#6B7280" />
+                    <Text style={styles.roomSpecText}>
+                      {(rate.adultCount || 0) + (rate.childCount || 0)} personnes
                     </Text>
-                  )}
-                  {response.data?.totalExcludedTaxes > 0 && (
-                    <Text style={styles.taxText}>
-                      Taxes à payer sur place: {new Intl.NumberFormat('fr-MA', { minimumFractionDigits: 2 }).format(response.data.totalExcludedTaxes)} {rateCurrency}
-                    </Text>
-                  )}
-
-                  {/* Cancellation Policy */}
-                  <View style={styles.cancellationContainer}>
-                    {rate.cancellationPolicies?.refundableTag === 'NRFN' ? (
-                      <View style={styles.policyRow}>
-                        <Ionicons name="close-circle-outline" size={14} color="#EF4444" />
-                        <Text style={[styles.policyText, { color: '#EF4444' }]}>Non remboursable</Text>
-                      </View>
-                    ) : (
-                      rate.cancellationPolicies?.cancelPolicyInfos?.length > 0 && (
-                        <View style={styles.policyRow}>
-                          <Ionicons name="checkmark-circle-outline" size={14} color="#059669" />
-                          <Text style={[styles.policyText, { color: '#059669' }]}>
-                            Annulation gratuite avant le {rate.cancellationPolicies.cancelPolicyInfos[0]?.cancelTime ? format(new Date(rate.cancellationPolicies.cancelPolicyInfos[0].cancelTime), 'dd/MM/yyyy') : ''}
-                          </Text>
-                        </View>
-                      )
+                    {rate.boardName && (
+                      <>
+                        <View style={styles.specDot} />
+                        <Text style={styles.roomSpecText}>{rate.boardName}</Text>
+                      </>
                     )}
                   </View>
 
-                  {/* Reservation Conditions Link */}
-                  {(rate.remarks || termsAndConditions) && (
-                    <TouchableOpacity
-                      onPress={() => openConditionsModal(rate.remarks ? `${rate.remarks}<br/><br/>${termsAndConditions || ''}` : termsAndConditions)}
-                      style={styles.conditionsLinkContainer}
-                    >
-                      <Text style={styles.conditionsLinkText}>Conditions de réservations chambre</Text>
-                    </TouchableOpacity>
-                  )}
+                  <View style={styles.rateFinancials}>
+                    <Text style={styles.ratePrice}>
+                      Prix: {new Intl.NumberFormat('fr-MA', { minimumFractionDigits: 2 }).format(ratePrice)} {rateCurrency}
+                    </Text>
+
+                    {/* Taxes - per rate */}
+                    {rateIncludedTaxes > 0 && (
+                      <Text style={styles.taxText}>
+                        Taxes et frais inclus: {new Intl.NumberFormat('fr-MA', { minimumFractionDigits: 2 }).format(rateIncludedTaxes)} {rateCurrency}
+                      </Text>
+                    )}
+                    {rateExcludedTaxes > 0 && (
+                      <Text style={styles.taxText}>
+                        Taxes à payer sur place: {new Intl.NumberFormat('fr-MA', { minimumFractionDigits: 2 }).format(rateExcludedTaxes)} {rateCurrency}
+                      </Text>
+                    )}
+
+                    {/* Cancellation Policy */}
+                    <View style={styles.cancellationContainer}>
+                      {rate.cancellationPolicies?.refundableTag === 'NRFN' ? (
+                        <View style={styles.policyRow}>
+                          <Ionicons name="close-circle-outline" size={14} color="#EF4444" />
+                          <Text style={[styles.policyText, { color: '#EF4444' }]}>Non remboursable</Text>
+                        </View>
+                      ) : (
+                        rate.cancellationPolicies?.cancelPolicyInfos?.length > 0 && (
+                          <View style={styles.policyRow}>
+                            <Ionicons name="checkmark-circle-outline" size={14} color="#059669" />
+                            <Text style={[styles.policyText, { color: '#059669' }]}>
+                              Annulation gratuite avant le {rate.cancellationPolicies.cancelPolicyInfos[0]?.cancelTime ? format(new Date(rate.cancellationPolicies.cancelPolicyInfos[0].cancelTime), 'dd/MM/yyyy') : ''}
+                            </Text>
+                          </View>
+                        )
+                      )}
+                    </View>
+
+                    {/* Reservation Conditions Link */}
+                    {(rate.remarks || termsAndConditions) && (
+                      <TouchableOpacity
+                        onPress={() => openConditionsModal(rate.remarks ? `${rate.remarks}<br/><br/>${termsAndConditions || ''}` : termsAndConditions)}
+                        style={styles.conditionsLinkContainer}
+                      >
+                        <Text style={styles.conditionsLinkText}>Conditions de réservations chambre</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
                 </View>
               </View>
-            </View>
-          );
+            );
+          });
         })}
 
         <Text style={styles.disclaimer}>
@@ -337,10 +348,10 @@ export const BookingSummaryScreen = ({ navigation, route }) => {
             // Navigate to payment checkout screen
             navigation.navigate('PaymentCheckout', {
               prebookData: {
-                simulationId: batchResponse.simulationId,
-                totalAmount: batchResponse.totalAmount, // Use batchResponse for total amount
-                totalIncludedTaxes: batchResponse.totalIncludedTaxes,
-                totalExcludedTaxes: batchResponse.totalExcludedTaxes,
+                simulationId: simulationId,
+                totalAmount: totalPrice,
+                totalIncludedTaxes: totalIncludedTaxes,
+                totalExcludedTaxes: totalExcludedTaxes,
               },
               travelerInfo: travelerInfo,
             });
