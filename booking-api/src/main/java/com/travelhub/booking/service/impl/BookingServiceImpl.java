@@ -14,6 +14,7 @@ import com.travelhub.booking.service.BookingService;
 import com.travelhub.booking.service.HotelDataService;
 import com.travelhub.connectors.nuitee.NuiteeApiClient;
 import com.travelhub.connectors.nuitee.dto.request.BookRequest;
+import com.travelhub.connectors.nuitee.dto.request.HotelsListRequest;
 import com.travelhub.connectors.nuitee.dto.request.PrebookRequest;
 import com.travelhub.connectors.nuitee.dto.response.*;
 import org.slf4j.Logger;
@@ -246,13 +247,12 @@ public class BookingServiceImpl implements BookingService {
     public BookResponseDto getBooking(String id) {
         logger.info("Retrieving booking details for database ID: {}", id);
 
-        // Get booking by id from database
         Booking booking = bookingRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Booking not found with id: " + id));
 
         logger.info("Found booking in database with bookingId: {}", booking.getBookingId());
 
-        // Call LiteAPI with the bookingId from the database
+
         String liteApiBookingId = booking.getBookingId();
         BookResponse connectorResponse = null;
 
@@ -265,25 +265,23 @@ public class BookingServiceImpl implements BookingService {
             }
         }
 
-        // Map connector response to DTO
         BookResponseDto dto;
         if (connectorResponse != null) {
             dto = bookingMapper.toBookResponseDto(connectorResponse);
         } else {
-            // If LiteAPI call failed, create DTO from database booking
+            // TODO use a mapper here
             dto = new BookResponseDto();
             BookResponseDto.BookDataDto bookData = new BookResponseDto.BookDataDto();
             bookData.setBookingId(booking.getBookingId());
             bookData.setStatus(booking.getStatus());
             bookData.setClientReference(booking.getId());
-            bookData.setCheckin(booking.getCheckin() != null ? booking.getCheckin().toString() : null);
-            bookData.setCheckout(booking.getCheckout() != null ? booking.getCheckout().toString() : null);
+            bookData.setCheckin(booking.getCheckin() != null ? booking.getCheckin() : null);
+            bookData.setCheckout(booking.getCheckout() != null ? booking.getCheckout() : null);
             bookData.setHotelId(booking.getHotelId());
             bookData.setHotelName(booking.getHotelName());
             dto.setData(bookData);
         }
 
-        // Fetch hotel details if we have a hotel ID
         if (dto != null && dto.getData() != null && dto.getData().getHotelId() != null) {
             try {
                 String hotelId = dto.getData().getHotelId();
@@ -299,51 +297,6 @@ public class BookingServiceImpl implements BookingService {
             }
         }
 
-        // Enhance BookResponseDto with info from Booking database entity
-        if (dto != null && dto.getData() != null) {
-            BookResponseDto.BookDataDto bookData = dto.getData();
-
-            // Set booking entity fields
-            bookData.setClientReference(booking.getId());
-
-            // Override with database values if they exist (database is source of truth)
-            if (booking.getStatus() != null) {
-                bookData.setStatus(booking.getStatus());
-            }
-            if (booking.getPrice() != null) {
-                bookData.setPrice(booking.getPrice());
-            }
-            if (booking.getCurrency() != null) {
-                bookData.setCurrency(booking.getCurrency());
-            }
-
-            // Set holder info in guest DTO
-            if (booking.getHolderFirstName() != null || booking.getHolderLastName() != null ||
-                    booking.getHolderEmail() != null || booking.getHolderPhone() != null) {
-
-                BookResponseDto.GuestContactDto guestDto = bookData.getGuest();
-                if (guestDto == null) {
-                    guestDto = new BookResponseDto.GuestContactDto();
-                    bookData.setGuest(guestDto);
-                }
-
-                if (booking.getHolderFirstName() != null) {
-                    guestDto.setFirstName(booking.getHolderFirstName());
-                }
-                if (booking.getHolderLastName() != null) {
-                    guestDto.setLastName(booking.getHolderLastName());
-                }
-                if (booking.getHolderEmail() != null) {
-                    guestDto.setEmail(booking.getHolderEmail());
-                }
-                if (booking.getHolderPhone() != null) {
-                    guestDto.setPhone(booking.getHolderPhone());
-                }
-            }
-
-            logger.debug("Enhanced booking response with database information");
-        }
-
         return dto;
     }
 
@@ -351,22 +304,16 @@ public class BookingServiceImpl implements BookingService {
     public BookingListResponseDto listBookings() {
         logger.info("Listing bookings for connected user");
 
-        // Search bookings in database - exclude FAILED bookings, sorted by checkin then createdAt
         List<Booking> bookings = bookingRepository.findByStatusNotOrderByCheckinAscCreatedAtAsc("FAILED");
         logger.info("Found {} bookings in database (excluding FAILED)", bookings.size());
 
-        // Aggregate all booking data from Nuitee API
-        // Note: Each clientReference returns exactly one booking from LiteAPI
         List<BookingListResponseDto.BookingDataDto> allBookingData = new ArrayList<>();
 
-        // For each booking in database, use id as client reference to call
-        // nuiteeApiClient.listBookings
-        // LiteAPI returns exactly one booking per clientReference
+
         for (Booking booking : bookings) {
             getBooking(allBookingData, booking);
         }
 
-        // Collect unique hotel IDs from all bookings
         List<String> uniqueHotelIds = allBookingData.stream()
                 .map(BookingListResponseDto.BookingDataDto::getHotelId)
                 .filter(java.util.Objects::nonNull)
@@ -375,13 +322,11 @@ public class BookingServiceImpl implements BookingService {
 
         logger.info("Found {} unique hotel IDs across bookings", uniqueHotelIds.size());
 
-        // Fetch hotel details (including images) for all unique hotel IDs
         java.util.Map<String, com.travelhub.connectors.nuitee.dto.response.MinimalHotelData> hotelDataMap = new java.util.HashMap<>();
 
         if (!uniqueHotelIds.isEmpty()) {
             try {
-                // Build hotels list request - hotelIds must be comma-separated
-                com.travelhub.connectors.nuitee.dto.request.HotelsListRequest hotelsRequest = new com.travelhub.connectors.nuitee.dto.request.HotelsListRequest();
+               HotelsListRequest hotelsRequest = new com.travelhub.connectors.nuitee.dto.request.HotelsListRequest();
                 hotelsRequest.setHotelIds(String.join(",", uniqueHotelIds));
 
                 logger.debug("Fetching hotel details for {} hotels", uniqueHotelIds.size());
@@ -389,8 +334,7 @@ public class BookingServiceImpl implements BookingService {
                         .getHotels(hotelsRequest);
 
                 if (hotelsResponse != null && hotelsResponse.getData() != null) {
-                    // Create a map of hotelId -> MinimalHotelData for easy lookup
-                    for (com.travelhub.connectors.nuitee.dto.response.MinimalHotelData hotelData : hotelsResponse
+                    for (MinimalHotelData hotelData : hotelsResponse
                             .getData()) {
                         if (hotelData.getId() != null) {
                             hotelDataMap.put(hotelData.getId(), hotelData);
@@ -404,20 +348,17 @@ public class BookingServiceImpl implements BookingService {
             }
         }
 
-        // Enrich booking data with hotel images
         for (BookingListResponseDto.BookingDataDto bookingData : allBookingData) {
             if (bookingData.getHotelId() != null && hotelDataMap.containsKey(bookingData.getHotelId())) {
-                com.travelhub.connectors.nuitee.dto.response.MinimalHotelData hotelData = hotelDataMap
+                MinimalHotelData hotelData = hotelDataMap
                         .get(bookingData.getHotelId());
 
-                // Update hotel info with images
                 BookingListResponseDto.HotelInfoDto hotelDto = bookingData.getHotel();
                 if (hotelDto == null) {
                     hotelDto = new BookingListResponseDto.HotelInfoDto();
                     bookingData.setHotel(hotelDto);
                 }
 
-                // Set hotel images
                 if (hotelData.getMainPhoto() != null) {
                     hotelDto.setMainPhoto(hotelData.getMainPhoto());
                 }
@@ -429,7 +370,6 @@ public class BookingServiceImpl implements BookingService {
             }
         }
 
-        // Create and return aggregated response
         BookingListResponseDto response = new BookingListResponseDto();
         response.setData(allBookingData);
         logger.info("Returning {} total bookings", allBookingData.size());
