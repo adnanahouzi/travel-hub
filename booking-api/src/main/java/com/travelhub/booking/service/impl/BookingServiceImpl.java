@@ -351,9 +351,9 @@ public class BookingServiceImpl implements BookingService {
     public BookingListResponseDto listBookings() {
         logger.info("Listing bookings for connected user");
 
-        // Search bookings in database
-        List<Booking> bookings = bookingRepository.findAll();
-        logger.info("Found {} bookings in database", bookings.size());
+        // Search bookings in database - exclude FAILED bookings, sorted by checkin then createdAt
+        List<Booking> bookings = bookingRepository.findByStatusNotOrderByCheckinAscCreatedAtAsc("FAILED");
+        logger.info("Found {} bookings in database (excluding FAILED)", bookings.size());
 
         // Aggregate all booking data from Nuitee API
         // Note: Each clientReference returns exactly one booking from LiteAPI
@@ -363,41 +363,7 @@ public class BookingServiceImpl implements BookingService {
         // nuiteeApiClient.listBookings
         // LiteAPI returns exactly one booking per clientReference
         for (Booking booking : bookings) {
-            try {
-                String clientReference = booking.getId();
-                logger.debug("Fetching booking from Nuitee for clientReference: {}", clientReference);
-
-                BookingListResponse connectorResponse = nuiteeApiClient.listBookings(clientReference);
-
-                BookingListResponseDto.BookingDataDto mergedDto = null;
-
-                if (connectorResponse != null && connectorResponse.getData() != null
-                        && !connectorResponse.getData().isEmpty()) {
-                    // Map connector response to DTO - expecting exactly one booking per
-                    // clientReference
-                    BookingListResponseDto dto = bookingMapper.toBookingListResponseDto(connectorResponse);
-                    if (dto != null && dto.getData() != null && !dto.getData().isEmpty()) {
-                        // LiteAPI returns exactly one booking per clientReference
-                        mergedDto = dto.getData().get(0);
-                    }
-                }
-
-                // Merge Booking entity data with Nuitee response (entity data takes precedence)
-                mergedDto = bookingMapper.mergeBookingEntityData(mergedDto, booking);
-
-                if (mergedDto != null) {
-                    allBookingData.add(mergedDto);
-                    logger.debug("Added booking for clientReference: {} (bookingId: {})",
-                            clientReference,
-                            mergedDto.getBookingId());
-                } else {
-                    logger.debug("No booking data available for clientReference: {}", clientReference);
-                }
-            } catch (Exception e) {
-                logger.warn("Failed to fetch booking from Nuitee for booking ID {}: {}", booking.getId(),
-                        e.getMessage());
-                // Continue with other bookings even if one fails
-            }
+            getBooking(allBookingData, booking);
         }
 
         // Collect unique hotel IDs from all bookings
@@ -469,5 +435,44 @@ public class BookingServiceImpl implements BookingService {
         logger.info("Returning {} total bookings", allBookingData.size());
 
         return response;
+    }
+
+
+    private void getBooking(List<BookingListResponseDto.BookingDataDto> allBookingData, Booking booking) {
+        try {
+            String clientReference = booking.getId();
+            logger.debug("Fetching booking from Nuitee for clientReference: {}", clientReference);
+
+            BookingListResponse connectorResponse = nuiteeApiClient.listBookings(clientReference);
+
+            BookingListResponseDto.BookingDataDto mergedDto = null;
+
+            if (connectorResponse != null && connectorResponse.getData() != null
+                    && !connectorResponse.getData().isEmpty()) {
+                // Map connector response to DTO - expecting exactly one booking per
+                // clientReference
+                BookingListResponseDto dto = bookingMapper.toBookingListResponseDto(connectorResponse);
+                if (dto != null && dto.getData() != null && !dto.getData().isEmpty()) {
+                    // LiteAPI returns exactly one booking per clientReference
+                    mergedDto = dto.getData().get(0);
+                }
+            }
+
+            // Merge Booking entity data with Nuitee response (entity data takes precedence)
+            mergedDto = bookingMapper.mergeBookingEntityData(mergedDto, booking);
+
+            if (mergedDto != null) {
+                allBookingData.add(mergedDto);
+                logger.debug("Added booking for clientReference: {} (bookingId: {})",
+                        clientReference,
+                        mergedDto.getBookingId());
+            } else {
+                logger.debug("No booking data available for clientReference: {}", clientReference);
+            }
+        } catch (Exception e) {
+            logger.warn("Failed to fetch booking from Nuitee for booking ID {}: {}", booking.getId(),
+                    e.getMessage());
+            // Continue with other bookings even if one fails
+        }
     }
 }
