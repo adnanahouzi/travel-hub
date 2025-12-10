@@ -25,9 +25,6 @@ public class BookingRoom {
     @Column(name = "board_name")
     private String boardName;
 
-    @Column(name = "mapped_room_id")
-    private Long mappedRoomId;
-
     // Getters and Setters
 
     public String getId() {
@@ -70,11 +67,5 @@ public class BookingRoom {
         this.boardName = boardName;
     }
 
-    public Long getMappedRoomId() {
-        return mappedRoomId;
-    }
 
-    public void setMappedRoomId(Long mappedRoomId) {
-        this.mappedRoomId = mappedRoomId;
-    }
 }

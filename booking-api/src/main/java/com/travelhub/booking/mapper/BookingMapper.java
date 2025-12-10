@@ -883,8 +883,7 @@ public class BookingMapper {
             return null;
         }
         BookResponseDto dto = new BookResponseDto();
-        dto.setGuestLevel(source.getGuestLevel());
-        dto.setSandbox(source.getSandbox());
+
         dto.setData(toBookDataDto(source.getData()));
         return dto;
     }
@@ -896,6 +895,11 @@ public class BookingMapper {
         }
         BookResponseDto.BookDataDto dto = new BookResponseDto.BookDataDto();
         dto.setBookingId(source.getBookingId());
+        dto.setClientReference(source.getClientReference());
+        dto.setSupplierBookingId(source.getSupplierBookingId());
+        dto.setSupplierBookingName(source.getSupplierBookingName());
+        dto.setSupplier(source.getSupplier());
+        dto.setSupplierId(source.getSupplierId());
         dto.setHotelConfirmationCode(source.getHotelConfirmationCode());
         dto.setReference(source.getReference());
         dto.setStatus(source.getStatus());
@@ -906,12 +910,83 @@ public class BookingMapper {
         dto.setHotelId(source.getHotelId());
         dto.setHotelName(source.getHotelName());
         dto.setRooms(toRoomBookedDtos(source.getRooms()));
-        dto.setGuest(toGuestContactDto(source.getGuest()));
+        dto.setGuest(toGuestContactDto(source.getHolder()));
+        dto.setHolder(toGuestContactDto(source.getHolder())); // holder is same as guest in connector
+        dto.setCreatedAt(source.getCreatedAt());
+        dto.setUpdatedAt(source.getUpdatedAt());
+        dto.setCancellationPolicies(mapCancellationPolicyDetail(source.getCancellationPolicies()));
+        dto.setSpecialRemarks(source.getSpecialRemarks());
+        dto.setOptionalFees(source.getOptionalFees());
+        dto.setMandatoryFees(source.getMandatoryFees());
+        dto.setKnowBeforeYouGo(source.getKnowBeforeYouGo());
+        dto.setCommission(source.getCommission());
+        dto.setAddonsTotalAmount(source.getAddonsTotalAmount());
+        dto.setRemarks(source.getRemarks());
+        dto.setVoucherCode(source.getVoucherCode());
+        dto.setVoucherTotalAmount(source.getVoucherTotalAmount());
+        dto.setAddons(source.getAddons());
+        dto.setGuestId(source.getGuestId());
+        dto.setDistributorCommission(source.getDistributorCommission());
+        dto.setDistributorPrice(source.getDistributorPrice());
+        dto.setTrackingId(source.getTrackingId());
+        dto.setFirstName(source.getFirstName());
+        dto.setLastName(source.getLastName());
+        dto.setAdults(source.getAdults());
+        dto.setChildren(source.getChildren());
+        dto.setChildrenCount(source.getChildrenCount());
+
+        dto.setPaymentStatus(source.getPaymentStatus());
+
+        dto.setSellingPrice(source.getSellingPrice());
+        dto.setExchangeRate(source.getExchangeRate());
+        dto.setExchangeRateUsd(source.getExchangeRateUsd());
+        dto.setEmail(source.getEmail());
+        dto.setTag(source.getTag());
+        dto.setLastFreeCancellationDate(source.getLastFreeCancellationDate());
+
+        dto.setNationality(source.getNationality());
+        dto.setHolderTitle(source.getHolderTitle());
+        dto.setCancelledAt(source.getCancelledAt());
+        dto.setRefundedAt(source.getRefundedAt());
+        dto.setLoyaltyGuestId(source.getLoyaltyGuestId());
+
+        dto.setClientCommission(source.getClientCommission());
+        dto.setVoucherId(source.getVoucherId());
+        dto.setVoucherTransationId(source.getVoucherTransationId());
+        dto.setProcessingFee(source.getProcessingFee());
+        dto.setAmountRefunded(source.getAmountRefunded());
+        dto.setRefundType(source.getRefundType());
+        dto.setPaymentScheduledAt(source.getPaymentScheduledAt());
+        dto.setAddonsRedemptions(source.getAddonsRedemptions());
+        dto.setRebookFrom(source.getRebookFrom());
+
+        dto.setCancelledBy(source.getCancelledBy());
+        dto.setFeed(source.getFeed());
+
+        dto.setHotelRemarks(source.getHotelRemarks());
+        
+        // Map hotel info if present
+        if (source.getHotel() != null) {
+            dto.setHotel(toHotelInfoDto(source.getHotel()));
+        }
+        
         return dto;
     }
 
+    private BookResponseDto.HotelInfoDto toHotelInfoDto(BookingHotelInfo source) {
+
+        if (source == null) {
+            return null;
+        }
+        BookResponseDto.HotelInfoDto dto = new BookResponseDto.HotelInfoDto();
+        dto.setHotelId(source.getHotelId());
+        dto.setName(source.getName());
+        return dto;
+
+    }
+
     private List<BookResponseDto.RoomBookedDto> toRoomBookedDtos(
-            List<com.travelhub.connectors.nuitee.dto.response.BookResponse.RoomBooked> sourceList) {
+            List<BookResponse.RoomBooked> sourceList) {
         if (sourceList == null) {
             return null;
         }
@@ -919,19 +994,93 @@ public class BookingMapper {
     }
 
     private BookResponseDto.RoomBookedDto toRoomBookedDto(
-            com.travelhub.connectors.nuitee.dto.response.BookResponse.RoomBooked source) {
+           BookResponse.RoomBooked source) {
         if (source == null) {
             return null;
         }
         BookResponseDto.RoomBookedDto dto = new BookResponseDto.RoomBookedDto();
-        dto.setRoomId(source.getRoomId());
         dto.setRoomName(source.getRoomName());
         dto.setBoardName(source.getBoardName());
+        
+        // Map enriched fields
+        if (source.getRoomType() != null) {
+            BookResponseDto.RoomBookedDto.RoomTypeDto roomTypeDto = new BookResponseDto.RoomBookedDto.RoomTypeDto();
+            roomTypeDto.setRoomTypeId(source.getRoomType().getRoomTypeId());
+            roomTypeDto.setName(source.getRoomType().getName());
+            dto.setRoomType(roomTypeDto);
+        }
+        dto.setBoardType(source.getBoardType());
+        dto.setBoardCode(source.getBoardCode());
+        dto.setAdults(source.getAdults());
+        dto.setChildren(source.getChildren());
+        dto.setChildrenAges(source.getChildrenAges());
+        dto.setFirstName(source.getFirstName());
+        dto.setLastName(source.getLastName());
+
+        dto.setOccupancy_number(source.getOccupancy_number());
+        dto.setAmount(source.getAmount());
+        dto.setCurrency(source.getCurrency());
+        dto.setChildren_count(source.getChildren_count());
+        dto.setRemarks(source.getRemarks());
+        
+        // Map rate detail
+        if (source.getRate() != null) {
+            BookResponseDto.RoomBookedDto.RateDetailDto rateDto = new BookResponseDto.RoomBookedDto.RateDetailDto();
+            rateDto.setRateId(source.getRate().getRateId());
+            rateDto.setMaxOccupancy(source.getRate().getMaxOccupancy());
+            rateDto.setBoardType(source.getRate().getBoardType());
+            rateDto.setBoardName(source.getRate().getBoardName());
+            rateDto.setRemarks(source.getRate().getRemarks());
+            rateDto.setPerks(source.getRate().getPerks());
+            if (source.getRate().getRetailRate() != null) {
+                rateDto.setRetailRate(mapBookRetailRateDetail(source.getRate().getRetailRate()));
+            }
+            if (source.getRate().getCancellationPolicies() != null) {
+                rateDto.setCancellationPolicies(mapCancellationPolicyDetail(source.getRate().getCancellationPolicies()));
+            }
+            dto.setRate(rateDto);
+        }
+        
+        // Map cancellation policies
+        if (source.getCancellationPolicies() != null) {
+            dto.setCancellationPolicies(mapCancellationPolicyDetail(source.getCancellationPolicies()));
+        }
+        
+        // Map guests
+        if (source.getGuests() != null && !source.getGuests().isEmpty()) {
+            List<BookResponseDto.GuestContactDto> guestDtos = source.getGuests().stream()
+                    .map(this::toGuestContactDto)
+                    .collect(Collectors.toList());
+            dto.setGuests(guestDtos);
+        }
+        
+        return dto;
+    }
+    
+    /**
+     * Maps BookRetailRateDetail (from BookResponse) to RetailRateDetailDto.
+     * BookRetailRateDetail uses single Price objects instead of lists.
+     */
+    private RetailRateDetailDto mapBookRetailRateDetail(
+            com.travelhub.connectors.nuitee.dto.response.BookResponse.RoomBooked.BookRetailRateDetail bookRetailRateDetail) {
+        if (bookRetailRateDetail == null) {
+            return null;
+        }
+        RetailRateDetailDto dto = new RetailRateDetailDto();
+        // Convert single Price objects to lists
+        if (bookRetailRateDetail.getTotal() != null) {
+            dto.setTotal(java.util.Collections.singletonList(mapPrice(bookRetailRateDetail.getTotal())));
+        }
+        if (bookRetailRateDetail.getSuggestedSellingPrice() != null) {
+            dto.setSuggestedSellingPrice(java.util.Collections.singletonList(mapPrice(bookRetailRateDetail.getSuggestedSellingPrice())));
+        }
+        // initialPrice is not present in BookRetailRateDetail
+        dto.setTaxesAndFees(mapTaxesAndFees(bookRetailRateDetail.getTaxesAndFees()));
         return dto;
     }
 
     private BookResponseDto.GuestContactDto toGuestContactDto(
-            com.travelhub.connectors.nuitee.dto.response.BookResponse.GuestContact source) {
+           BookResponse.GuestContact source) {
         if (source == null) {
             return null;
         }
@@ -1004,10 +1153,7 @@ public class BookingMapper {
         return dto;
     }
 
-    /**
-     * Merges Booking entity data with Nuitee API response data.
-     * Booking entity data takes precedence for fields that exist in both sources.
-     */
+
     public BookingListResponseDto.BookingDataDto mergeBookingEntityData(
             BookingListResponseDto.BookingDataDto nuiteeDto,
             Booking bookingEntity) {

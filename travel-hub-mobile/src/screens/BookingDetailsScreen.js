@@ -10,7 +10,8 @@ import {
     Dimensions,
     Platform,
     Linking,
-    Alert
+    Alert,
+    Modal
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
@@ -18,6 +19,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { ApiService } from '../services/api.service';
+import RenderHTML from 'react-native-render-html';
 
 const { width } = Dimensions.get('window');
 
@@ -27,6 +29,7 @@ export const BookingDetailsScreen = ({ route, navigation }) => {
     const [booking, setBooking] = useState(null);
     const [hotelDetails, setHotelDetails] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [showHotelRemarksModal, setShowHotelRemarksModal] = useState(false);
 
     useEffect(() => {
         fetchData();
@@ -397,7 +400,16 @@ export const BookingDetailsScreen = ({ route, navigation }) => {
                             <Ionicons name="chevron-forward" size={24} color="#E85D40" />
                         </TouchableOpacity>
                         <View style={styles.divider} />
-                        <TouchableOpacity style={styles.manageRow}>
+                        <TouchableOpacity 
+                            style={styles.manageRow}
+                            onPress={() => {
+                                if (booking?.hotelRemarks) {
+                                    setShowHotelRemarksModal(true);
+                                } else {
+                                    Alert.alert('Information', 'Aucune information complémentaire disponible.');
+                                }
+                            }}
+                        >
                             <View style={styles.manageIconContainer}>
                                 <Ionicons name="information-circle-outline" size={24} color="#6B7280" />
                             </View>
@@ -418,6 +430,51 @@ export const BookingDetailsScreen = ({ route, navigation }) => {
                 </View>
 
             </ScrollView>
+
+            {/* Hotel Remarks Modal */}
+            <Modal
+                visible={showHotelRemarksModal}
+                animationType="slide"
+                presentationStyle="pageSheet"
+                onRequestClose={() => setShowHotelRemarksModal(false)}
+            >
+                <SafeAreaView style={styles.modalContainer}>
+                    <View style={styles.modalHeader}>
+                        <Text style={styles.modalTitle}>Informations complémentaires</Text>
+                        <TouchableOpacity
+                            onPress={() => setShowHotelRemarksModal(false)}
+                            style={styles.modalCloseButton}
+                        >
+                            <Ionicons name="close" size={28} color="#1F2937" />
+                        </TouchableOpacity>
+                    </View>
+                    <ScrollView 
+                        style={styles.modalContent}
+                        contentContainerStyle={styles.modalContentContainer}
+                    >
+                        {booking?.hotelRemarks ? (
+                            <RenderHTML
+                                contentWidth={width - 32}
+                                source={{ html: booking.hotelRemarks }}
+                                tagsStyles={{
+                                    p: { marginBottom: 12, fontSize: 15, lineHeight: 22, color: '#1F2937' },
+                                    ul: { marginBottom: 12 },
+                                    li: { marginBottom: 8, fontSize: 15, lineHeight: 22, color: '#1F2937' },
+                                    b: { fontWeight: '700', color: '#1F2937' },
+                                    br: { marginBottom: 8 },
+                                }}
+                                baseStyle={{
+                                    color: '#1F2937',
+                                    fontSize: 15,
+                                    lineHeight: 22,
+                                }}
+                            />
+                        ) : (
+                            <Text style={styles.noContentText}>Aucune information complémentaire disponible.</Text>
+                        )}
+                    </ScrollView>
+                </SafeAreaView>
+            </Modal>
         </SafeAreaView>
     );
 };
@@ -772,5 +829,39 @@ const styles = StyleSheet.create({
         color: '#E85D40',
         fontSize: 16,
         fontWeight: '600',
+    },
+    // Modal Styles
+    modalContainer: {
+        flex: 1,
+        backgroundColor: '#F9FAFB',
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: 16,
+        backgroundColor: '#FFF',
+        borderBottomWidth: 1,
+        borderBottomColor: '#E5E7EB',
+    },
+    modalTitle: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: '#1F2937',
+    },
+    modalCloseButton: {
+        padding: 4,
+    },
+    modalContent: {
+        flex: 1,
+    },
+    modalContentContainer: {
+        padding: 16,
+    },
+    noContentText: {
+        fontSize: 16,
+        color: '#6B7280',
+        textAlign: 'center',
+        marginTop: 40,
     },
 });

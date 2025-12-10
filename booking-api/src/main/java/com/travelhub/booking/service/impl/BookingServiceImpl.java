@@ -192,22 +192,20 @@ public class BookingServiceImpl implements BookingService {
                     for (BookResponse.RoomBooked roomData : data.getRooms()) {
                         com.travelhub.booking.model.BookingRoom room = new com.travelhub.booking.model.BookingRoom();
                         room.setBooking(savedBooking);
-                        room.setRoomId(roomData.getRoomId());
                         room.setRoomName(roomData.getRoomName());
                         room.setBoardName(roomData.getBoardName());
-                        room.setMappedRoomId(roomData.getMappedRoomId());
                         savedBooking.getRooms().add(room);
                     }
                 }
 
                 // Create and save guest entity
-                if (data.getGuest() != null) {
+                if (data.getHolder() != null) {
                     com.travelhub.booking.model.BookingGuest guest = new com.travelhub.booking.model.BookingGuest();
                     guest.setBooking(savedBooking);
-                    guest.setFirstName(data.getGuest().getFirstName());
-                    guest.setLastName(data.getGuest().getLastName());
-                    guest.setEmail(data.getGuest().getEmail());
-                    guest.setPhone(data.getGuest().getPhone());
+                    guest.setFirstName(data.getHolder().getFirstName());
+                    guest.setLastName(data.getHolder().getLastName());
+                    guest.setEmail(data.getHolder().getEmail());
+                    guest.setPhone(data.getHolder().getPhone());
                     savedBooking.setGuest(guest);
                 }
 
