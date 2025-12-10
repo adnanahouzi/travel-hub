@@ -4,7 +4,8 @@ import com.travelhub.booking.dto.request.HotelRateRequestDto;
 import com.travelhub.booking.dto.request.RateSearchRequestDto;
 import com.travelhub.booking.dto.response.HotelRateResponseDto;
 import com.travelhub.booking.dto.response.RateSearchResponseDto;
-import com.travelhub.booking.mapper.BookingMapper;
+import com.travelhub.booking.mapper.RateMapper;
+import com.travelhub.booking.mapper.HotelDataMapper;
 import com.travelhub.booking.service.RateService;
 import com.travelhub.connectors.nuitee.NuiteeApiClient;
 import com.travelhub.connectors.nuitee.dto.request.HotelRatesRequest;
@@ -22,11 +23,13 @@ public class RateServiceImpl implements RateService {
 
         private static final Logger logger = LoggerFactory.getLogger(RateServiceImpl.class);
         private final NuiteeApiClient nuiteeApiClient;
-        private final BookingMapper bookingMapper;
+        private final RateMapper rateMapper;
+        private final HotelDataMapper hotelDataMapper;
 
-        public RateServiceImpl(NuiteeApiClient nuiteeApiClient, BookingMapper bookingMapper) {
+        public RateServiceImpl(NuiteeApiClient nuiteeApiClient, RateMapper rateMapper, HotelDataMapper hotelDataMapper) {
                 this.nuiteeApiClient = nuiteeApiClient;
-                this.bookingMapper = bookingMapper;
+                this.rateMapper = rateMapper;
+                this.hotelDataMapper = hotelDataMapper;
         }
 
         @Override
@@ -62,7 +65,7 @@ public class RateServiceImpl implements RateService {
                 logger.debug("Using {} hotel IDs: {}", hotelIds.size(),
                                 hotelIds.size() <= 5 ? hotelIds : hotelIds.subList(0, 5) + "...");
 
-                HotelRatesRequest hotelRatesRequest = bookingMapper.toHotelRatesRequest(request);
+                HotelRatesRequest hotelRatesRequest = rateMapper.toHotelRatesRequest(request);
                 hotelRatesRequest.setHotelIds(hotelIds); // Set the hotel IDs list directly
                 hotelRatesRequest.setMaxRatesPerHotel(1);
 
@@ -72,7 +75,7 @@ public class RateServiceImpl implements RateService {
                 logger.info("Retrieved {} hotel rates from connector",
                                 hotelRatesResponse.getData() != null ? hotelRatesResponse.getData().size() : 0);
 
-                RateSearchResponseDto response = bookingMapper.toRateSearchResponseDto(hotelRatesResponse, hotelsListResponse);
+                RateSearchResponseDto response = rateMapper.toRateSearchResponseDto(hotelRatesResponse, hotelsListResponse, hotelDataMapper);
                 logger.debug("Mapped connector response to DTO");
 
                 return response;
@@ -85,11 +88,13 @@ public class RateServiceImpl implements RateService {
 
                 // Step 1: Get hotel details
                 logger.debug("Fetching hotel details for hotelId: {}", hotelId);
+
+                //Language code for response (ISO 639-1)
                 HotelDetailsResponse hotelDetails = nuiteeApiClient.getHotelDetails(
                                 hotelId,
-                                request.getTimeout(),
-                                request.getLanguage(),
-                                request.getAdvancedAccessibilityOnly());
+                                30,
+                                "fr",
+                                false);
                 logger.info("Hotel details retrieved for hotelId: {}", hotelId);
 
                 // Step 2: Get hotel rates
@@ -97,15 +102,17 @@ public class RateServiceImpl implements RateService {
                 HotelRatesRequest ratesRequest = new HotelRatesRequest();
                 ratesRequest.setHotelIds(Collections.singletonList(hotelId));
                 ratesRequest.setOccupancies(request.getOccupancies());
-                ratesRequest.setCurrency(request.getCurrency());
-                ratesRequest.setGuestNationality(request.getGuestNationality());
+                ratesRequest.setCurrency("MAD");
+                ratesRequest.setGuestNationality("MA");
                 ratesRequest.setCheckin(request.getCheckin());
                 ratesRequest.setCheckout(request.getCheckout());
-                ratesRequest.setTimeout(request.getTimeout());
-                ratesRequest.setRoomMapping(request.getRoomMapping());
+                ratesRequest.setTimeout(30);
+                ratesRequest.setRoomMapping(true);
 
                 HotelRatesResponse ratesResponse = nuiteeApiClient.retrieveHotelRates(ratesRequest);
                 logger.info("Hotel rates retrieved for hotelId: {}", hotelId);
+
+
 
                 // Step 3: Extract room types for the hotel
                 List<RoomType> roomTypes = null;
@@ -113,16 +120,26 @@ public class RateServiceImpl implements RateService {
                         HotelRate hotelRate = ratesResponse.getData().get(0);
                         if (hotelRate != null) {
                                 roomTypes = hotelRate.getRoomTypes();
-                                logger.debug("Found {} room types for hotelId: {}",
+                                logger.info("Found {} room types for hotelId: {}",
                                                 roomTypes != null ? roomTypes.size() : 0, hotelId);
                         }
                 }
 
+
+                //
+
+            roomTypes.forEach(roomType -> {
+                // TODO roomType represent one offer each roomType contains a list of rates wich represent
+
+            });
+
+
+
                 // Step 4: Combine hotel details with rates and map room details
                 logger.debug("Mapping hotel details and rates to response DTO");
-                HotelRateResponseDto response = bookingMapper.toHotelRateResponseDto(
+                HotelRateResponseDto response = hotelDataMapper.toHotelRateResponseDto(
                                 hotelDetails != null ? hotelDetails.getData() : null,
-                                roomTypes);
+                                roomTypes, rateMapper);
 
                 return response;
         }

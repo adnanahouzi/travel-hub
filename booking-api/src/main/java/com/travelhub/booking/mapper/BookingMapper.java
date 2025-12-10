@@ -1,13 +1,11 @@
 package com.travelhub.booking.mapper;
 
-import com.travelhub.booking.dto.request.RateSearchRequestDto;
-import com.travelhub.booking.dto.response.*;
-import com.travelhub.booking.dto.response.BookResponseDto;
-import com.travelhub.booking.model.Booking;
-import com.travelhub.connectors.nuitee.dto.common.Price;
-import com.travelhub.connectors.nuitee.dto.request.HotelRatesRequest;
-import com.travelhub.connectors.nuitee.dto.request.BookRequest;
 import com.travelhub.booking.dto.request.BookingInitiationRequestDto;
+import com.travelhub.booking.dto.request.PrebookRequestDto;
+import com.travelhub.booking.dto.response.*;
+import com.travelhub.booking.model.Booking;
+import com.travelhub.connectors.nuitee.dto.request.BookRequest;
+import com.travelhub.connectors.nuitee.dto.request.PrebookRequest;
 import com.travelhub.connectors.nuitee.dto.response.*;
 import org.springframework.stereotype.Component;
 
@@ -18,806 +16,71 @@ import java.util.stream.Collectors;
 @Component
 public class BookingMapper {
 
-    // Place mapping methods
-    public PlaceSearchResponseDto toPlaceSearchResponseDto(PlaceResponse placeResponse) {
-        if (placeResponse == null || placeResponse.getData() == null) {
-            return new PlaceSearchResponseDto();
-        }
-        List<PlaceDto> places = placeResponse.getData().stream()
-                .map(this::toPlaceDto)
-                .collect(Collectors.toList());
-        return new PlaceSearchResponseDto(places);
-    }
-
-    public PlaceDto toPlaceDto(Place place) {
-        if (place == null) {
-            return null;
-        }
-        PlaceDto placeDto = new PlaceDto();
-        placeDto.setPlaceId(place.getPlaceId());
-        placeDto.setDisplayName(place.getDisplayName());
-        placeDto.setTypes(place.getTypes());
-        return placeDto;
-    }
-
-    public PlaceDetailsDto toPlaceDetailsDto(
-            com.travelhub.connectors.nuitee.dto.response.PlaceDetailsResponse response) {
-        if (response == null || response.getData() == null) {
-            return null;
-        }
-        com.travelhub.connectors.nuitee.dto.response.PlaceDetails data = response.getData();
-        PlaceDetailsDto dto = new PlaceDetailsDto();
-        dto.setPlaceId(data.getPlaceId());
-        dto.setDescription(data.getDescription());
-        dto.setCity(data.getCity());
-        dto.setLocation(toLocationDto(data.getLocation()));
-        return dto;
-    }
-
-    // Hotel rate mapping methods
-    public HotelRateResponseDto toHotelRateResponseDto(HotelData hotelData,
-            List<com.travelhub.connectors.nuitee.dto.response.RoomType> roomTypes) {
-        if (hotelData == null) {
-            return null;
-        }
-
-        HotelRateResponseDto response = new HotelRateResponseDto();
-        response.setHotelId(hotelData.getId());
-        response.setName(hotelData.getName());
-        response.setDescription(hotelData.getHotelDescription());
-        response.setImportantInformation(hotelData.getHotelImportantInformation());
-        response.setStarRating(hotelData.getStarRating());
-        response.setRating(hotelData.getRating());
-        response.setReviewCount(hotelData.getReviewCount());
-        response.setAddress(hotelData.getAddress());
-        response.setCity(hotelData.getCity());
-        response.setCountry(hotelData.getCountry());
-        response.setZip(hotelData.getZip());
-        response.setLocation(toLocationDto(hotelData.getLocation()));
-        response.setMainPhoto(hotelData.getMainPhoto());
-        response.setThumbnail(hotelData.getThumbnail());
-        response.setImages(toHotelImageDtos(hotelData.getHotelImages()));
-        response.setFacilities(hotelData.getHotelFacilities());
-        response.setPhone(hotelData.getPhone());
-        response.setEmail(hotelData.getEmail());
-        response.setCheckinCheckoutTimes(toCheckinCheckoutTimesDto(hotelData.getCheckinCheckoutTimes()));
-        
-        // Map sentiment analysis from HotelData
-        if (hotelData.getSentimentAnalysis() != null) {
-            SentimentAnalysisDto sentimentDto = toSentimentAnalysisDto(hotelData.getSentimentAnalysis());
-            response.setSentimentAnalysis(sentimentDto);
-            // Log for debugging
-            System.out.println("Mapped sentimentAnalysis - pros: " + 
-                (sentimentDto != null && sentimentDto.getPros() != null ? sentimentDto.getPros().size() : 0) + 
-                " items, categories: " + 
-                (sentimentDto != null && sentimentDto.getCategories() != null ? sentimentDto.getCategories().size() : 0) + 
-                " items");
-        } else {
-            System.out.println("No sentimentAnalysis found in HotelData");
-        }
-
-        // Group rates by offerId with room breakdown, then by configuration
-        List<GroupedRateDto> offers = groupByOffer(roomTypes, hotelData.getRooms());
-        response.setGroupedRates(groupRatesByConfiguration(offers));
-
-        return response;
-    }
-
-    private LocationDto toLocationDto(Location location) {
-        if (location == null) {
-            return null;
-        }
-        LocationDto dto = new LocationDto();
-        dto.setLatitude(location.getLatitude());
-        dto.setLongitude(location.getLongitude());
-        return dto;
-    }
-
-    private List<HotelImageDto> toHotelImageDtos(List<HotelImage> images) {
-        if (images == null) {
-            return null;
-        }
-        return images.stream()
-                .map(this::toHotelImageDto)
-                .collect(Collectors.toList());
-    }
-
-    private HotelImageDto toHotelImageDto(HotelImage image) {
-        if (image == null) {
-            return null;
-        }
-        HotelImageDto dto = new HotelImageDto();
-        dto.setUrl(image.getUrl());
-        dto.setCaption(image.getCaption());
-        dto.setDefaultImage(image.getDefaultImage());
-        return dto;
-    }
-
-    private CheckinCheckoutTimesDto toCheckinCheckoutTimesDto(CheckinCheckoutTimes times) {
-        if (times == null) {
-            return null;
-        }
-        CheckinCheckoutTimesDto dto = new CheckinCheckoutTimesDto();
-        dto.setCheckinFrom(times.getCheckin());
-        dto.setCheckout(times.getCheckout());
-        return dto;
-    }
-
-    /**
-     * Groups rates by offerId, creating a room breakdown with counts for each
-     * offer.
-     * Each RoomType (offer) becomes a GroupedRateDto with its rooms aggregated.
-     */
-    private List<GroupedRateDto> groupByOffer(
-            List<com.travelhub.connectors.nuitee.dto.response.RoomType> roomTypes, List<Room> hotelRooms) {
-        if (roomTypes == null) {
-            return null;
-        }
-
-        return roomTypes.stream()
-                .map(roomType -> {
-                    GroupedRateDto grouped = new GroupedRateDto();
-                    grouped.setOfferId(roomType.getOfferId());
-
-                    // Get rates for this offer
-                    List<Rate> rates = roomType.getRates();
-                    if (rates == null || rates.isEmpty()) {
-                        grouped.setRoomBreakdown(new java.util.ArrayList<>());
-                        return grouped;
-                    }
-
-                    // Use first rate for offer-level properties
-                    Rate firstRate = rates.get(0);
-                    grouped.setBoardType(firstRate.getBoardType());
-                    grouped.setBoardName(firstRate.getBoardName());
-                    grouped.setPerks(firstRate.getPerks());
-                    grouped.setPaymentTypes(firstRate.getPaymentTypes());
-                    grouped.setCancellationPolicies(mapCancellationPolicyDetail(firstRate.getCancellationPolicies()));
-
-                    // Use offer-level retail rate
-                    grouped.setRetailRate(mapOfferPricesToRetailRateDetail(roomType));
-
-                    // Group rates by mappedRoomId to create room breakdown
-                    java.util.Map<Long, List<RateDto>> ratesByRoom = new java.util.LinkedHashMap<>();
-                    for (Rate rate : rates) {
-                        RateDto rateDto = toRateDto(rate);
-                        if (rateDto != null) {
-                            rateDto.setOfferId(roomType.getOfferId());
-
-                            // Enrich with room details
-                            if (hotelRooms != null && rate.getMappedRoomId() != null) {
-                                Room matchingRoom = hotelRooms.stream()
-                                        .filter(room -> rate.getMappedRoomId().equals(room.getId().longValue()))
-                                        .findFirst()
-                                        .orElse(null);
-                                if (matchingRoom != null) {
-                                    enrichRateWithRoomDetails(rateDto, matchingRoom);
-                                }
-                            }
-
-                            Long roomKey = rate.getMappedRoomId() != null ? rate.getMappedRoomId() : 0L;
-                            ratesByRoom.computeIfAbsent(roomKey, k -> new java.util.ArrayList<>()).add(rateDto);
-                        }
-                    }
-
-                    // Convert to room breakdown
-                    List<RoomBreakdownDto> roomBreakdown = ratesByRoom.entrySet().stream()
-                            .map(entry -> {
-                                List<RateDto> roomRates = entry.getValue();
-                                RateDto firstRoomRate = roomRates.get(0);
-
-                                RoomBreakdownDto breakdown = new RoomBreakdownDto();
-                                breakdown.setMappedRoomId(entry.getKey() != 0L ? entry.getKey() : null);
-                                breakdown.setName(firstRoomRate.getName());
-                                breakdown.setCount(roomRates.size());
-                                breakdown.setAdultCount(firstRoomRate.getAdultCount());
-                                breakdown.setChildCount(firstRoomRate.getChildCount());
-                                breakdown.setRoomSize(firstRoomRate.getRoomSize());
-                                breakdown.setRoomSizeUnit(firstRoomRate.getRoomSizeUnit());
-                                breakdown.setRoomPhotos(firstRoomRate.getRoomPhotos());
-                                breakdown.setRates(roomRates);
-
-                                return breakdown;
-                            })
-                            .collect(Collectors.toList());
-
-                    grouped.setRoomBreakdown(roomBreakdown);
-                    return grouped;
-                })
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Groups offers by unique room configuration (name and count).
-     */
-    private List<RoomConfigurationGroupDto> groupRatesByConfiguration(List<GroupedRateDto> offers) {
-        if (offers == null || offers.isEmpty()) {
-            return new java.util.ArrayList<>();
-        }
-
-        java.util.Map<String, List<GroupedRateDto>> groupedByConfig = new java.util.HashMap<>();
-
-        for (GroupedRateDto offer : offers) {
-            String key = getRoomConfigKey(offer);
-            groupedByConfig.computeIfAbsent(key, k -> new java.util.ArrayList<>()).add(offer);
-        }
-
-        return groupedByConfig.values().stream()
-                .map(this::mapToConfigurationGroup)
-                .sorted(java.util.Comparator.comparing(g -> {
-                    RoomConfigurationGroupDto group = (RoomConfigurationGroupDto) g;
-                    if (group.getStartingPrice() != null && group.getStartingPrice().getTotal() != null
-                            && !group.getStartingPrice().getTotal().isEmpty()) {
-                        return group.getStartingPrice().getTotal().get(0).getAmount();
-                    }
-                    return BigDecimal.ZERO;
-                }))
-                .collect(Collectors.toList());
-    }
-
-    private String getRoomConfigKey(GroupedRateDto offer) {
-        if (offer.getRoomBreakdown() == null) {
-            return "unknown";
-        }
-        // Sort specifically to ensure consistent key (e.g. "Twin + Double" == "Double +
-        // Twin")
-        return offer.getRoomBreakdown().stream()
-                .sorted(java.util.Comparator.comparing(RoomBreakdownDto::getMappedRoomId,
-                        java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder())))
-                .map(r -> r.getCount() + "x" + (r.getMappedRoomId() != null ? r.getMappedRoomId() : "0"))
-                .collect(Collectors.joining("|"));
-    }
-
-    private RoomConfigurationGroupDto mapToConfigurationGroup(List<GroupedRateDto> groupOffers) {
-        if (groupOffers == null || groupOffers.isEmpty()) {
-            return null;
-        }
-
-        // Sort offers by price to find "starting from"
-        groupOffers.sort((o1, o2) -> {
-            BigDecimal p1 = (o1.getRetailRate() != null && o1.getRetailRate().getTotal() != null
-                    && !o1.getRetailRate().getTotal().isEmpty())
-                            ? o1.getRetailRate().getTotal().get(0).getAmount()
-                            : null;
-
-            BigDecimal p2 = (o2.getRetailRate() != null && o2.getRetailRate().getTotal() != null
-                    && !o2.getRetailRate().getTotal().isEmpty())
-                            ? o2.getRetailRate().getTotal().get(0).getAmount()
-                            : null;
-
-            if (p1 == null && p2 == null)
-                return 0;
-            if (p1 == null)
-                return 1;
-            if (p2 == null)
-                return -1;
-            return p1.compareTo(p2);
-        });
-
-        GroupedRateDto bestOffer = groupOffers.get(0);
-        RoomConfigurationGroupDto dto = new RoomConfigurationGroupDto();
-
-        dto.setConfigurationKey(getRoomConfigKey(bestOffer));
-        dto.setName(getOfferDisplayName(bestOffer));
-        dto.setRoomBreakdown(bestOffer.getRoomBreakdown());
-        dto.setStartingPrice(bestOffer.getRetailRate());
-        dto.setOffers(groupOffers);
-
-        return dto;
-    }
-
-    private String getOfferDisplayName(GroupedRateDto offer) {
-        if (offer.getRoomBreakdown() != null && !offer.getRoomBreakdown().isEmpty()) {
-            if (offer.getRoomBreakdown().size() == 1 && offer.getRoomBreakdown().get(0).getCount() == 1) {
-                return offer.getRoomBreakdown().get(0).getName();
-            }
-            return offer.getRoomBreakdown().stream()
-                    .map(b -> b.getCount() + " x " + b.getName())
-                    .collect(Collectors.joining(" + "));
-        }
-        return "Offre de chambre";
-    }
-
-    /**
-     * Maps offer-level prices to RetailRateDetailDto.
-     */
-    private RetailRateDetailDto mapOfferPricesToRetailRateDetail(
-            com.travelhub.connectors.nuitee.dto.response.RoomType roomType) {
-        if (roomType == null) {
-            return null;
-        }
-
-        RetailRateDetailDto dto = new RetailRateDetailDto();
-        if (roomType.getOfferRetailRate() != null) {
-            dto.setTotal(java.util.Collections.singletonList(mapPrice(roomType.getOfferRetailRate())));
-        }
-        if (roomType.getSuggestedSellingPrice() != null) {
-            dto.setSuggestedSellingPrice(
-                    java.util.Collections.singletonList(mapPrice(roomType.getSuggestedSellingPrice())));
-        }
-        if (roomType.getOfferInitialPrice() != null) {
-            dto.setInitialPrice(java.util.Collections.singletonList(mapPrice(roomType.getOfferInitialPrice())));
-        }
-        // Taxes are not explicitly available at offer level in simple Price object,
-        // but Total includes them if the connector logic works as expected.
-        return dto;
-    }
-
-    private void enrichRateWithRoomDetails(RateDto rateDto, Room room) {
-        if (rateDto == null || room == null) {
-            return;
-        }
-        // Add detailed room information from hotel details to the rate
-        rateDto.setName(room.getRoomName()); // Use room name from hotel details, not from rate
-        rateDto.setRoomDescription(room.getDescription());
-        rateDto.setRoomSize(room.getRoomSizeSquare());
-        rateDto.setRoomSizeUnit(room.getRoomSizeUnit());
-        rateDto.setMaxAdults(room.getMaxAdults());
-        rateDto.setMaxChildren(room.getMaxChildren());
-        rateDto.setMaxOccupancy(room.getMaxOccupancy());
-        rateDto.setRoomPhotos(mapRoomPhotos(room.getPhotos()));
-    }
-
-    private List<RoomPhotoDto> mapRoomPhotos(List<com.travelhub.connectors.nuitee.dto.response.RoomPhoto> photos) {
-        if (photos == null) {
-            return null;
-        }
-        return photos.stream()
-                .map(this::mapRoomPhoto)
-                .collect(Collectors.toList());
-    }
-
-    private RoomPhotoDto mapRoomPhoto(com.travelhub.connectors.nuitee.dto.response.RoomPhoto photo) {
-        if (photo == null) {
-            return null;
-        }
-        RoomPhotoDto dto = new RoomPhotoDto();
-        dto.setUrl(photo.getUrl());
-        dto.setHdUrl(photo.getHdUrl());
-        dto.setImageDescription(photo.getImageDescription());
-        dto.setMainPhoto(photo.getMainPhoto());
-        return dto;
-    }
-
-    public HotelRatesRequest toHotelRatesRequest(RateSearchRequestDto request) {
-        if (request == null) {
-            return null;
-        }
-        HotelRatesRequest hotelRatesRequest = new HotelRatesRequest();
-        hotelRatesRequest.setOccupancies(request.getOccupancies());
-        hotelRatesRequest.setCurrency(request.getCurrency());
-        hotelRatesRequest.setGuestNationality(request.getGuestNationality());
-        hotelRatesRequest.setCheckin(request.getCheckin());
-        hotelRatesRequest.setCheckout(request.getCheckout());
-        hotelRatesRequest.setHotelIds(request.getHotelIds());
-        hotelRatesRequest.setCountryCode(request.getCountryCode());
-        hotelRatesRequest.setCityName(request.getCityName());
-        hotelRatesRequest.setLatitude(request.getLatitude());
-        hotelRatesRequest.setLongitude(request.getLongitude());
-        hotelRatesRequest.setRadius(request.getRadius());
-        hotelRatesRequest.setIataCode(request.getIataCode());
-        hotelRatesRequest.setPlaceId(request.getPlaceId());
-        hotelRatesRequest.setAiSearch(request.getAiSearch());
-        hotelRatesRequest.setTimeout(request.getTimeout());
-        hotelRatesRequest.setRoomMapping(request.getRoomMapping());
-       // hotelRatesRequest.setLimit(request.getLimit());
-       // hotelRatesRequest.setOffset(request.getOffset());
-        hotelRatesRequest.setWeatherInfo(request.getWeatherInfo());
-        hotelRatesRequest.setStream(request.getStream());
-        hotelRatesRequest.setHotelName(request.getHotelName());
-        hotelRatesRequest.setMinReviewsCount(request.getMinReviewsCount());
-        hotelRatesRequest.setMinRating(request.getMinRating());
-        hotelRatesRequest.setZip(request.getZip());
-        hotelRatesRequest.setStarRating(request.getStarRating());
-        hotelRatesRequest.setFacilities(request.getFacilities());
-        hotelRatesRequest.setStrictFacilityFiltering(request.getStrictFacilityFiltering());
-        hotelRatesRequest.setSort(mapSortCriteria(request.getSort()));
-        return hotelRatesRequest;
-    }
-
-    private List<com.travelhub.connectors.nuitee.dto.common.SortCriteria> mapSortCriteria(
-            List<com.travelhub.booking.dto.common.SortCriteriaDto> sortDtos) {
-        if (sortDtos == null) {
-            return null;
-        }
-        return sortDtos.stream()
-                .map(dto -> new com.travelhub.connectors.nuitee.dto.common.SortCriteria(dto.getField(),
-                        dto.getDirection()))
-                .collect(Collectors.toList());
-    }
-
-    public RateSearchResponseDto toRateSearchResponseDto(HotelRatesResponse response, HotelsListResponse hotelsListResponse) {
-        if (response == null) {
-            return null;
-        }
-        RateSearchResponseDto rateSearchResponse = new RateSearchResponseDto();
-        rateSearchResponse.setHotels(mergeHotelData(response.getData(), hotelsListResponse.getData(), hotelsListResponse.getPlace()));
-        rateSearchResponse.setGuestLevel(response.getGuestLevel());
-        rateSearchResponse.setSandbox(response.getSandbox());
-        rateSearchResponse.setSessionId(response.getSessionId());
-        return rateSearchResponse;
-    }
-
-    private List<HotelAvailabilityDto> mergeHotelData(List<HotelRate> hotelRates, List<MinimalHotelData> hotelInfos, Place place) {
-        if (hotelRates == null) {
-            return null;
-        }
-
-        // Create a map of hotel info by hotel id for quick lookup
-        java.util.Map<String, MinimalHotelData> hotelInfoMap = new java.util.HashMap<>();
-        if (hotelInfos != null) {
-            for (MinimalHotelData info : hotelInfos) {
-                hotelInfoMap.put(info.getId(), info);
-            }
-        }
-
-        return hotelRates.stream()
-                .map(rate -> mergeHotelAvailability(rate, hotelInfoMap.get(rate.getHotelId()), place))
-                .collect(Collectors.toList());
-    }
-
-    private HotelAvailabilityDto mergeHotelAvailability(HotelRate hotelRate, MinimalHotelData hotelInfo, Place place) {
-        if (hotelRate == null) {
-            return null;
-        }
-
-        HotelAvailabilityDto dto = new HotelAvailabilityDto();
-
-        // Set data from HotelRate
-        dto.setHotelId(hotelRate.getHotelId());
-        dto.setRoomTypes(mapRoomTypes(hotelRate.getRoomTypes()));
-        dto.setEt(hotelRate.getEt());
-
-        // Set data from HotelInfo if available
-        if (hotelInfo != null) {
-            dto.setName(hotelInfo.getName());
-            dto.setMainPhoto(hotelInfo.getMainPhoto());
-            dto.setAddress(hotelInfo.getAddress());
-            dto.setRating(hotelInfo.getRating() != null ? BigDecimal.valueOf(hotelInfo.getRating()) : null);
-            dto.setReviewCount(hotelInfo.getReviewCount());
-            dto.setStars(hotelInfo.getStars());
-            dto.setLocation(toLocationDto(hotelInfo.getLongitude(), hotelInfo.getLatitude()));
-            
-            // Calculate distance from place if both locations are available
-            if (place != null && place.getLocation() != null && hotelInfo.getLatitude() != null && hotelInfo.getLongitude() != null) {
-                BigDecimal placeLat = place.getLocation().getLatitude();
-                BigDecimal placeLon = place.getLocation().getLongitude();
-                BigDecimal hotelLat = hotelInfo.getLatitude();
-                BigDecimal hotelLon = hotelInfo.getLongitude();
-                
-                if (placeLat != null && placeLon != null && hotelLat != null && hotelLon != null) {
-                    BigDecimal distance = calculateDistance(placeLat, placeLon, hotelLat, hotelLon);
-                    dto.setDistance(distance);
-                }
-            }
-        }
-
-        return dto;
-    }
-    
-    /**
-     * Calculate distance between two coordinates using Haversine formula
-     * @param lat1 Latitude of first point
-     * @param lon1 Longitude of first point
-     * @param lat2 Latitude of second point
-     * @param lon2 Longitude of second point
-     * @return Distance in kilometers
-     */
-    private BigDecimal calculateDistance(BigDecimal lat1, BigDecimal lon1, BigDecimal lat2, BigDecimal lon2) {
-        if (lat1 == null || lon1 == null || lat2 == null || lon2 == null) {
-            return null;
-        }
-        
-        final int EARTH_RADIUS_KM = 6371;
-        
-        double lat1Rad = Math.toRadians(lat1.doubleValue());
-        double lat2Rad = Math.toRadians(lat2.doubleValue());
-        double deltaLat = Math.toRadians(lat2.doubleValue() - lat1.doubleValue());
-        double deltaLon = Math.toRadians(lon2.doubleValue() - lon1.doubleValue());
-        
-        double a = Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
-                   Math.cos(lat1Rad) * Math.cos(lat2Rad) *
-                   Math.sin(deltaLon / 2) * Math.sin(deltaLon / 2);
-        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-        
-        double distance = EARTH_RADIUS_KM * c;
-        
-        return BigDecimal.valueOf(distance).setScale(2, java.math.RoundingMode.HALF_UP);
-    }
-
-    private LocationDto toLocationDto(BigDecimal longitude, BigDecimal latitude) {
-        if (longitude == null ) {
-            return null;
-        }
-        LocationDto dto = new LocationDto();
-        dto.setLatitude(latitude);
-        dto.setLongitude(longitude);
-        return dto;
-    }
-
-    private List<RoomTypeDto> mapRoomTypes(List<RoomType> roomTypes) {
-        if (roomTypes == null) {
-            return null;
-        }
-        return roomTypes.stream()
-                .map(this::mapRoomType)
-                .collect(Collectors.toList());
-    }
-
-    private RoomTypeDto mapRoomType(RoomType roomType) {
-        if (roomType == null) {
-            return null;
-        }
-        RoomTypeDto dto = new RoomTypeDto();
-        dto.setRoomTypeId(roomType.getRoomTypeId());
-        dto.setOfferId(roomType.getOfferId());
-        dto.setSupplier(roomType.getSupplier());
-        dto.setSupplierId(roomType.getSupplierId());
-        dto.setRates(mapRates(roomType.getRates(), roomType.getOfferId()));
-        dto.setOfferRetailRate(mapPrice(roomType.getOfferRetailRate()));
-        dto.setSuggestedSellingPrice(mapPrice(roomType.getSuggestedSellingPrice()));
-        dto.setOfferInitialPrice(mapPrice(roomType.getOfferInitialPrice()));
-        dto.setPriceType(roomType.getPriceType());
-        dto.setRateType(roomType.getRateType());
-        dto.setPaymentTypes(roomType.getPaymentTypes());
-        return dto;
-    }
-
-    private List<RateDto> mapRates(List<Rate> rates, String offerId) {
-        if (rates == null) {
-            return null;
-        }
-        return rates.stream()
-                .map(rate -> {
-                    RateDto rateDto = toRateDto(rate);
-                    if (rateDto != null) {
-                        rateDto.setOfferId(offerId);
-                    }
-                    return rateDto;
-                })
-                .collect(Collectors.toList());
-    }
-
-    public RateDto toRateDto(Rate rate) {
-        if (rate == null) {
-            return null;
-        }
-        RateDto dto = new RateDto();
-        dto.setRateId(rate.getRateId());
-        dto.setOccupancyNumber(rate.getOccupancyNumber());
-        dto.setName(rate.getName());
-        dto.setMaxOccupancy(rate.getMaxOccupancy());
-        dto.setAdultCount(rate.getAdultCount());
-        dto.setChildCount(rate.getChildCount());
-        dto.setChildrenAges(rate.getChildrenAges());
-        dto.setBoardType(rate.getBoardType());
-        dto.setBoardName(rate.getBoardName());
-        dto.setRemarks(rate.getRemarks());
-        dto.setPriceType(rate.getPriceType());
-        dto.setCommission(mapPrices(rate.getCommission()));
-        dto.setRetailRate(mapRetailRateDetail(rate.getRetailRate()));
-        dto.setCancellationPolicies(mapCancellationPolicyDetail(rate.getCancellationPolicies()));
-        dto.setMappedRoomId(rate.getMappedRoomId());
-        dto.setPaymentTypes(rate.getPaymentTypes());
-        dto.setProviderCommission(mapPrice(rate.getProviderCommission()));
-        dto.setPerks(rate.getPerks());
-        return dto;
-    }
-
-    private List<PriceDto> mapPrices(List<Price> prices) {
-        if (prices == null) {
-            return null;
-        }
-        return prices.stream()
-                .map(this::mapPrice)
-                .collect(Collectors.toList());
-    }
-
-    private PriceDto mapPrice(Price price) {
-        if (price == null) {
-            return null;
-        }
-        PriceDto dto = new PriceDto();
-        dto.setAmount(price.getAmount());
-        dto.setCurrency(price.getCurrency());
-        dto.setSource(price.getSource());
-        return dto;
-    }
-
-    private RetailRateDetailDto mapRetailRateDetail(RetailRateDetail retailRateDetail) {
-        if (retailRateDetail == null) {
-            return null;
-        }
-        RetailRateDetailDto dto = new RetailRateDetailDto();
-        dto.setTotal(mapPrices(retailRateDetail.getTotal()));
-        dto.setSuggestedSellingPrice(mapPrices(retailRateDetail.getSuggestedSellingPrice()));
-        dto.setInitialPrice(mapPrices(retailRateDetail.getInitialPrice()));
-        dto.setTaxesAndFees(mapTaxesAndFees(retailRateDetail.getTaxesAndFees()));
-        return dto;
-    }
-
-    private List<TaxAndFeeDto> mapTaxesAndFees(List<TaxAndFee> taxesAndFees) {
-        if (taxesAndFees == null) {
-            return null;
-        }
-        return taxesAndFees.stream()
-                .map(this::mapTaxAndFee)
-                .collect(Collectors.toList());
-    }
-
-    private TaxAndFeeDto mapTaxAndFee(TaxAndFee taxAndFee) {
-        if (taxAndFee == null) {
-            return null;
-        }
-        TaxAndFeeDto dto = new TaxAndFeeDto();
-        dto.setIncluded(taxAndFee.isIncluded());
-        dto.setDescription(taxAndFee.getDescription());
-        dto.setAmount(taxAndFee.getAmount());
-        dto.setCurrency(taxAndFee.getCurrency());
-        return dto;
-    }
-
-    private CancellationPolicyDetailDto mapCancellationPolicyDetail(CancellationPolicyDetail cancellationPolicyDetail) {
-        if (cancellationPolicyDetail == null) {
-            return null;
-        }
-        CancellationPolicyDetailDto dto = new CancellationPolicyDetailDto();
-        dto.setCancelPolicyInfos(mapCancellationPolicyInfos(cancellationPolicyDetail.getCancelPolicyInfos()));
-        dto.setHotelRemarks(cancellationPolicyDetail.getHotelRemarks());
-        dto.setRefundableTag(cancellationPolicyDetail.getRefundableTag());
-        return dto;
-    }
-
-    private List<CancellationPolicyInfoDto> mapCancellationPolicyInfos(List<CancellationPolicyInfo> infos) {
-        if (infos == null) {
-            return null;
-        }
-        return infos.stream()
-                .map(this::mapCancellationPolicyInfo)
-                .collect(Collectors.toList());
-    }
-
-    private CancellationPolicyInfoDto mapCancellationPolicyInfo(CancellationPolicyInfo info) {
-        if (info == null) {
-            return null;
-        }
-        CancellationPolicyInfoDto dto = new CancellationPolicyInfoDto();
-        dto.setCancelTime(info.getCancelTime());
-        dto.setAmount(info.getAmount());
-        dto.setCurrency(info.getCurrency());
-        dto.setType(info.getType());
-        dto.setTimezone(info.getTimezone());
-        return dto;
-    }
-
-    // Review mapping methods
-    public com.travelhub.booking.dto.response.HotelReviewsResponseDto toHotelReviewsResponseDto(
-            com.travelhub.connectors.nuitee.dto.response.HotelReviewsResponse response) {
-        if (response == null) {
-            return null;
-        }
-        com.travelhub.booking.dto.response.HotelReviewsResponseDto dto = new com.travelhub.booking.dto.response.HotelReviewsResponseDto();
-        dto.setTotal(response.getTotal());
-        dto.setData(toReviewDtos(response.getData()));
-        dto.setSentimentAnalysis(toSentimentAnalysisDto(response.getSentimentAnalysis()));
-        return dto;
-    }
-
-    private List<ReviewDto> toReviewDtos(List<Review> reviews) {
-        if (reviews == null) {
-            return null;
-        }
-        return reviews.stream()
-                .map(this::toReviewDto)
-                .collect(Collectors.toList());
-    }
-
-    private ReviewDto toReviewDto(Review review) {
-        if (review == null) {
-            return null;
-        }
-        ReviewDto dto = new ReviewDto();
-        dto.setAverageScore(review.getAverageScore());
-        dto.setCountry(review.getCountry());
-        dto.setType(review.getType());
-        dto.setName(review.getName());
-        dto.setDate(review.getDate());
-        dto.setHeadline(review.getHeadline());
-        dto.setLanguage(review.getLanguage());
-        dto.setPros(review.getPros());
-        dto.setCons(review.getCons());
-        dto.setSource(review.getSource());
-        return dto;
-    }
-
-    private SentimentAnalysisDto toSentimentAnalysisDto(SentimentAnalysis analysis) {
-        if (analysis == null) {
-            return null;
-        }
-        SentimentAnalysisDto dto = new SentimentAnalysisDto();
-        dto.setCons(analysis.getCons());
-        dto.setPros(analysis.getPros());
-        dto.setCategories(toSentimentCategoryDtos(analysis.getCategories()));
-        return dto;
-    }
-
-    private List<SentimentCategoryDto> toSentimentCategoryDtos(List<SentimentCategory> categories) {
-        if (categories == null) {
-            return null;
-        }
-        return categories.stream()
-                .map(this::toSentimentCategoryDto)
-                .collect(Collectors.toList());
-    }
-
-    private SentimentCategoryDto toSentimentCategoryDto(SentimentCategory category) {
-        if (category == null) {
-            return null;
-        }
-        SentimentCategoryDto dto = new SentimentCategoryDto();
-        dto.setName(category.getName());
-        dto.setRating(category.getRating());
-        dto.setDescription(category.getDescription());
-        return dto;
+    private final RateMapper rateMapper;
+    private final HotelDataMapper hotelDataMapper;
+
+    public BookingMapper(RateMapper rateMapper, HotelDataMapper hotelDataMapper) {
+        this.rateMapper = rateMapper;
+        this.hotelDataMapper = hotelDataMapper;
     }
 
     // Prebook mapping methods
-    public com.travelhub.connectors.nuitee.dto.request.PrebookRequest toPrebookRequest(
-            com.travelhub.booking.dto.request.PrebookRequestDto requestDto) {
+    public PrebookRequest toPrebookRequest(
+            PrebookRequestDto requestDto) {
         if (requestDto == null) {
             return null;
         }
-        com.travelhub.connectors.nuitee.dto.request.PrebookRequest request = new com.travelhub.connectors.nuitee.dto.request.PrebookRequest();
+        PrebookRequest request = new PrebookRequest();
         request.setOfferId(requestDto.getOfferId());
         request.setUsePaymentSdk(requestDto.getUsePaymentSdk());
         return request;
     }
 
-    public com.travelhub.booking.dto.response.PrebookResponseDto toPrebookResponseDto(
-            com.travelhub.connectors.nuitee.dto.response.PrebookResponse response) {
+    public PrebookResponseDto toPrebookResponseDto(
+            PrebookResponse response) {
         if (response == null) {
             return null;
         }
-        com.travelhub.booking.dto.response.PrebookResponseDto dto = new com.travelhub.booking.dto.response.PrebookResponseDto();
-        dto.setData(toPrebookDataDto(response.getData()));
-        dto.setGuestLevel(response.getGuestLevel());
-        dto.setSandbox(response.getSandbox());
-        return dto;
+        PrebookResponseDto prebookResponse = new PrebookResponseDto();
+        prebookResponse.setData(toPrebookDataDto(response.getData()));
+        prebookResponse.setGuestLevel(response.getGuestLevel());
+        prebookResponse.setSandbox(response.getSandbox());
+        return prebookResponse;
     }
 
-    private com.travelhub.booking.dto.response.PrebookResponseDto.PrebookDataDto toPrebookDataDto(
-            com.travelhub.connectors.nuitee.dto.response.PrebookResponse.PrebookData data) {
+    private PrebookResponseDto.PrebookDataDto toPrebookDataDto(
+            PrebookResponse.PrebookData data) {
         if (data == null) {
             return null;
         }
-        com.travelhub.booking.dto.response.PrebookResponseDto.PrebookDataDto dto = new com.travelhub.booking.dto.response.PrebookResponseDto.PrebookDataDto();
-        dto.setPrebookId(data.getPrebookId());
-        dto.setOfferId(data.getOfferId());
-        dto.setHotelId(data.getHotelId());
-        dto.setCurrency(data.getCurrency());
-        dto.setTermsAndConditions(data.getTermsAndConditions());
+        PrebookResponseDto.PrebookDataDto prebookData = new PrebookResponseDto.PrebookDataDto();
+        prebookData.setPrebookId(data.getPrebookId());
+        prebookData.setOfferId(data.getOfferId());
+        prebookData.setHotelId(data.getHotelId());
+        prebookData.setCurrency(data.getCurrency());
+        prebookData.setTermsAndConditions(data.getTermsAndConditions());
 
         // Map roomTypes if present
         if (data.getRoomTypes() != null) {
             List<RoomTypeDto> roomTypeDtos = data.getRoomTypes().stream()
-                    .map(this::mapRoomType)
+                    .map((RoomType roomType) -> rateMapper.mapRoomType(roomType))
                     .collect(Collectors.toList());
-            dto.setRoomTypes(roomTypeDtos);
+            prebookData.setRoomTypes(roomTypeDtos);
         }
 
-        dto.setSuggestedSellingPrice(data.getSuggestedSellingPrice());
-        dto.setIsPackageRate(data.getIsPackageRate());
-        dto.setCommission(data.getCommission());
-        dto.setPrice(data.getPrice());
-        dto.setPriceType(data.getPriceType());
-        dto.setPriceDifferencePercent(data.getPriceDifferencePercent());
-        dto.setCancellationChanged(data.getCancellationChanged());
-        dto.setBoardChanged(data.getBoardChanged());
-        dto.setSupplier(data.getSupplier());
-        dto.setSupplierId(data.getSupplierId());
-        dto.setPaymentTypes(data.getPaymentTypes());
-        dto.setCheckin(data.getCheckin());
-        dto.setCheckout(data.getCheckout());
+        prebookData.setSuggestedSellingPrice(data.getSuggestedSellingPrice());
+        prebookData.setIsPackageRate(data.getIsPackageRate());
+        prebookData.setCommission(data.getCommission());
+        prebookData.setPrice(data.getPrice());
+        prebookData.setPriceType(data.getPriceType());
+        prebookData.setPriceDifferencePercent(data.getPriceDifferencePercent());
+        prebookData.setCancellationChanged(data.getCancellationChanged());
+        prebookData.setBoardChanged(data.getBoardChanged());
+        prebookData.setSupplier(data.getSupplier());
+        prebookData.setSupplierId(data.getSupplierId());
+        prebookData.setPaymentTypes(data.getPaymentTypes());
+        prebookData.setCheckin(data.getCheckin());
+        prebookData.setCheckout(data.getCheckout());
 
         // Calculate total included and excluded taxes
         BigDecimal totalIncludedTaxes = BigDecimal.ZERO;
@@ -843,10 +106,10 @@ public class BookingMapper {
             }
         }
 
-        dto.setTotalIncludedTaxes(totalIncludedTaxes);
-        dto.setTotalExcludedTaxes(totalExcludedTaxes);
+        prebookData.setTotalIncludedTaxes(totalIncludedTaxes);
+        prebookData.setTotalExcludedTaxes(totalExcludedTaxes);
 
-        return dto;
+        return prebookData;
     }
 
     public BookRequest toBookRequest(BookingInitiationRequestDto requestDto, String prebookId, String clientReference) {
@@ -878,111 +141,99 @@ public class BookingMapper {
         return request;
     }
 
-    public BookResponseDto toBookResponseDto(com.travelhub.connectors.nuitee.dto.response.BookResponse source) {
+    public BookResponseDto toBookResponseDto(BookResponse source) {
         if (source == null) {
             return null;
         }
-        BookResponseDto dto = new BookResponseDto();
+        BookResponseDto bookResponse = new BookResponseDto();
 
-        dto.setData(toBookDataDto(source.getData()));
-        return dto;
+        bookResponse.setData(toBookDataDto(source.getData()));
+        return bookResponse;
     }
 
     private BookResponseDto.BookDataDto toBookDataDto(
-            com.travelhub.connectors.nuitee.dto.response.BookResponse.BookData source) {
+            BookResponse.BookData source) {
         if (source == null) {
             return null;
         }
-        BookResponseDto.BookDataDto dto = new BookResponseDto.BookDataDto();
-        dto.setBookingId(source.getBookingId());
-        dto.setClientReference(source.getClientReference());
-        dto.setSupplierBookingId(source.getSupplierBookingId());
-        dto.setSupplierBookingName(source.getSupplierBookingName());
-        dto.setSupplier(source.getSupplier());
-        dto.setSupplierId(source.getSupplierId());
-        dto.setHotelConfirmationCode(source.getHotelConfirmationCode());
-        dto.setReference(source.getReference());
-        dto.setStatus(source.getStatus());
-        dto.setPrice(source.getPrice());
-        dto.setCurrency(source.getCurrency());
-        dto.setCheckin(source.getCheckin());
-        dto.setCheckout(source.getCheckout());
-        dto.setHotelId(source.getHotelId());
-        dto.setHotelName(source.getHotelName());
-        dto.setRooms(toRoomBookedDtos(source.getRooms()));
-        dto.setGuest(toGuestContactDto(source.getHolder()));
-        dto.setHolder(toGuestContactDto(source.getHolder())); // holder is same as guest in connector
-        dto.setCreatedAt(source.getCreatedAt());
-        dto.setUpdatedAt(source.getUpdatedAt());
-        dto.setCancellationPolicies(mapCancellationPolicyDetail(source.getCancellationPolicies()));
-        dto.setSpecialRemarks(source.getSpecialRemarks());
-        dto.setOptionalFees(source.getOptionalFees());
-        dto.setMandatoryFees(source.getMandatoryFees());
-        dto.setKnowBeforeYouGo(source.getKnowBeforeYouGo());
-        dto.setCommission(source.getCommission());
-        dto.setAddonsTotalAmount(source.getAddonsTotalAmount());
-        dto.setRemarks(source.getRemarks());
-        dto.setVoucherCode(source.getVoucherCode());
-        dto.setVoucherTotalAmount(source.getVoucherTotalAmount());
-        dto.setAddons(source.getAddons());
-        dto.setGuestId(source.getGuestId());
-        dto.setDistributorCommission(source.getDistributorCommission());
-        dto.setDistributorPrice(source.getDistributorPrice());
-        dto.setTrackingId(source.getTrackingId());
-        dto.setFirstName(source.getFirstName());
-        dto.setLastName(source.getLastName());
-        dto.setAdults(source.getAdults());
-        dto.setChildren(source.getChildren());
-        dto.setChildrenCount(source.getChildrenCount());
+        BookResponseDto.BookDataDto bookData = new BookResponseDto.BookDataDto();
+        bookData.setBookingId(source.getBookingId());
+        bookData.setClientReference(source.getClientReference());
+        bookData.setSupplierBookingId(source.getSupplierBookingId());
+        bookData.setSupplierBookingName(source.getSupplierBookingName());
+        bookData.setSupplier(source.getSupplier());
+        bookData.setSupplierId(source.getSupplierId());
+        bookData.setHotelConfirmationCode(source.getHotelConfirmationCode());
+        bookData.setReference(source.getReference());
+        bookData.setStatus(source.getStatus());
+        bookData.setPrice(source.getPrice());
+        bookData.setCurrency(source.getCurrency());
+        bookData.setCheckin(source.getCheckin());
+        bookData.setCheckout(source.getCheckout());
+        bookData.setHotelId(source.getHotelId());
+        bookData.setHotelName(source.getHotelName());
+        bookData.setRooms(toRoomBookedDtos(source.getRooms()));
+        bookData.setGuest(toGuestContactDto(source.getHolder()));
+        bookData.setHolder(toGuestContactDto(source.getHolder())); // holder is same as guest in connector
+        bookData.setCreatedAt(source.getCreatedAt());
+        bookData.setUpdatedAt(source.getUpdatedAt());
+        bookData.setCancellationPolicies(rateMapper.mapCancellationPolicyDetail(source.getCancellationPolicies()));
+        bookData.setSpecialRemarks(source.getSpecialRemarks());
+        bookData.setOptionalFees(source.getOptionalFees());
+        bookData.setMandatoryFees(source.getMandatoryFees());
+        bookData.setKnowBeforeYouGo(source.getKnowBeforeYouGo());
+        bookData.setCommission(source.getCommission());
+        bookData.setAddonsTotalAmount(source.getAddonsTotalAmount());
+        bookData.setRemarks(source.getRemarks());
+        bookData.setVoucherCode(source.getVoucherCode());
+        bookData.setVoucherTotalAmount(source.getVoucherTotalAmount());
+        bookData.setAddons(source.getAddons());
+        bookData.setGuestId(source.getGuestId());
+        bookData.setDistributorCommission(source.getDistributorCommission());
+        bookData.setDistributorPrice(source.getDistributorPrice());
+        bookData.setTrackingId(source.getTrackingId());
+        bookData.setFirstName(source.getFirstName());
+        bookData.setLastName(source.getLastName());
+        bookData.setAdults(source.getAdults());
+        bookData.setChildren(source.getChildren());
+        bookData.setChildrenCount(source.getChildrenCount());
 
-        dto.setPaymentStatus(source.getPaymentStatus());
+        bookData.setPaymentStatus(source.getPaymentStatus());
 
-        dto.setSellingPrice(source.getSellingPrice());
-        dto.setExchangeRate(source.getExchangeRate());
-        dto.setExchangeRateUsd(source.getExchangeRateUsd());
-        dto.setEmail(source.getEmail());
-        dto.setTag(source.getTag());
-        dto.setLastFreeCancellationDate(source.getLastFreeCancellationDate());
+        bookData.setSellingPrice(source.getSellingPrice());
+        bookData.setExchangeRate(source.getExchangeRate());
+        bookData.setExchangeRateUsd(source.getExchangeRateUsd());
+        bookData.setEmail(source.getEmail());
+        bookData.setTag(source.getTag());
+        bookData.setLastFreeCancellationDate(source.getLastFreeCancellationDate());
 
-        dto.setNationality(source.getNationality());
-        dto.setHolderTitle(source.getHolderTitle());
-        dto.setCancelledAt(source.getCancelledAt());
-        dto.setRefundedAt(source.getRefundedAt());
-        dto.setLoyaltyGuestId(source.getLoyaltyGuestId());
+        bookData.setNationality(source.getNationality());
+        bookData.setHolderTitle(source.getHolderTitle());
+        bookData.setCancelledAt(source.getCancelledAt());
+        bookData.setRefundedAt(source.getRefundedAt());
+        bookData.setLoyaltyGuestId(source.getLoyaltyGuestId());
 
-        dto.setClientCommission(source.getClientCommission());
-        dto.setVoucherId(source.getVoucherId());
-        dto.setVoucherTransationId(source.getVoucherTransationId());
-        dto.setProcessingFee(source.getProcessingFee());
-        dto.setAmountRefunded(source.getAmountRefunded());
-        dto.setRefundType(source.getRefundType());
-        dto.setPaymentScheduledAt(source.getPaymentScheduledAt());
-        dto.setAddonsRedemptions(source.getAddonsRedemptions());
-        dto.setRebookFrom(source.getRebookFrom());
+        bookData.setClientCommission(source.getClientCommission());
+        bookData.setVoucherId(source.getVoucherId());
+        bookData.setVoucherTransationId(source.getVoucherTransationId());
+        bookData.setProcessingFee(source.getProcessingFee());
+        bookData.setAmountRefunded(source.getAmountRefunded());
+        bookData.setRefundType(source.getRefundType());
+        bookData.setPaymentScheduledAt(source.getPaymentScheduledAt());
+        bookData.setAddonsRedemptions(source.getAddonsRedemptions());
+        bookData.setRebookFrom(source.getRebookFrom());
 
-        dto.setCancelledBy(source.getCancelledBy());
-        dto.setFeed(source.getFeed());
+        bookData.setCancelledBy(source.getCancelledBy());
+        bookData.setFeed(source.getFeed());
 
-        dto.setHotelRemarks(source.getHotelRemarks());
-        
+        bookData.setHotelRemarks(source.getHotelRemarks());
+
         // Map hotel info if present
         if (source.getHotel() != null) {
-            dto.setHotel(toHotelInfoDto(source.getHotel()));
+            bookData.setHotel(hotelDataMapper.toHotelInfoDto(source.getHotel()));
         }
-        
-        return dto;
-    }
 
-    private BookResponseDto.HotelInfoDto toHotelInfoDto(BookingHotelInfo source) {
-
-        if (source == null) {
-            return null;
-        }
-        BookResponseDto.HotelInfoDto dto = new BookResponseDto.HotelInfoDto();
-        dto.setHotelId(source.getHotelId());
-        dto.setName(source.getName());
-        return dto;
-
+        return bookData;
     }
 
     private List<BookResponseDto.RoomBookedDto> toRoomBookedDtos(
@@ -994,102 +245,81 @@ public class BookingMapper {
     }
 
     private BookResponseDto.RoomBookedDto toRoomBookedDto(
-           BookResponse.RoomBooked source) {
+            BookResponse.RoomBooked source) {
         if (source == null) {
             return null;
         }
-        BookResponseDto.RoomBookedDto dto = new BookResponseDto.RoomBookedDto();
-        dto.setRoomName(source.getRoomName());
-        dto.setBoardName(source.getBoardName());
-        
+        BookResponseDto.RoomBookedDto roomBooked = new BookResponseDto.RoomBookedDto();
+        roomBooked.setRoomName(source.getRoomName());
+        roomBooked.setBoardName(source.getBoardName());
+
         // Map enriched fields
         if (source.getRoomType() != null) {
             BookResponseDto.RoomBookedDto.RoomTypeDto roomTypeDto = new BookResponseDto.RoomBookedDto.RoomTypeDto();
             roomTypeDto.setRoomTypeId(source.getRoomType().getRoomTypeId());
             roomTypeDto.setName(source.getRoomType().getName());
-            dto.setRoomType(roomTypeDto);
+            roomBooked.setRoomType(roomTypeDto);
         }
-        dto.setBoardType(source.getBoardType());
-        dto.setBoardCode(source.getBoardCode());
-        dto.setAdults(source.getAdults());
-        dto.setChildren(source.getChildren());
-        dto.setChildrenAges(source.getChildrenAges());
-        dto.setFirstName(source.getFirstName());
-        dto.setLastName(source.getLastName());
+        roomBooked.setBoardType(source.getBoardType());
+        roomBooked.setBoardCode(source.getBoardCode());
+        roomBooked.setAdults(source.getAdults());
+        roomBooked.setChildren(source.getChildren());
+        roomBooked.setChildrenAges(source.getChildrenAges());
+        roomBooked.setFirstName(source.getFirstName());
+        roomBooked.setLastName(source.getLastName());
 
-        dto.setOccupancy_number(source.getOccupancy_number());
-        dto.setAmount(source.getAmount());
-        dto.setCurrency(source.getCurrency());
-        dto.setChildren_count(source.getChildren_count());
-        dto.setRemarks(source.getRemarks());
-        
+        roomBooked.setOccupancy_number(source.getOccupancy_number());
+        roomBooked.setAmount(source.getAmount());
+        roomBooked.setCurrency(source.getCurrency());
+        roomBooked.setChildren_count(source.getChildren_count());
+        roomBooked.setRemarks(source.getRemarks());
+
         // Map rate detail
         if (source.getRate() != null) {
-            BookResponseDto.RoomBookedDto.RateDetailDto rateDto = new BookResponseDto.RoomBookedDto.RateDetailDto();
-            rateDto.setRateId(source.getRate().getRateId());
-            rateDto.setMaxOccupancy(source.getRate().getMaxOccupancy());
-            rateDto.setBoardType(source.getRate().getBoardType());
-            rateDto.setBoardName(source.getRate().getBoardName());
-            rateDto.setRemarks(source.getRate().getRemarks());
-            rateDto.setPerks(source.getRate().getPerks());
+            BookResponseDto.RoomBookedDto.RateDetailDto rateDetail = new BookResponseDto.RoomBookedDto.RateDetailDto();
+            rateDetail.setRateId(source.getRate().getRateId());
+            rateDetail.setMaxOccupancy(source.getRate().getMaxOccupancy());
+            rateDetail.setBoardType(source.getRate().getBoardType());
+            rateDetail.setBoardName(source.getRate().getBoardName());
+            rateDetail.setRemarks(source.getRate().getRemarks());
+            rateDetail.setPerks(source.getRate().getPerks());
             if (source.getRate().getRetailRate() != null) {
-                rateDto.setRetailRate(mapBookRetailRateDetail(source.getRate().getRetailRate()));
+                rateDetail.setRetailRate(rateMapper.mapBookRetailRateDetail(source.getRate().getRetailRate()));
             }
             if (source.getRate().getCancellationPolicies() != null) {
-                rateDto.setCancellationPolicies(mapCancellationPolicyDetail(source.getRate().getCancellationPolicies()));
+                rateDetail.setCancellationPolicies(
+                        rateMapper.mapCancellationPolicyDetail(source.getRate().getCancellationPolicies()));
             }
-            dto.setRate(rateDto);
+            roomBooked.setRate(rateDetail);
         }
-        
+
         // Map cancellation policies
         if (source.getCancellationPolicies() != null) {
-            dto.setCancellationPolicies(mapCancellationPolicyDetail(source.getCancellationPolicies()));
+            roomBooked.setCancellationPolicies(rateMapper.mapCancellationPolicyDetail(source.getCancellationPolicies()));
         }
-        
+
         // Map guests
         if (source.getGuests() != null && !source.getGuests().isEmpty()) {
             List<BookResponseDto.GuestContactDto> guestDtos = source.getGuests().stream()
                     .map(this::toGuestContactDto)
                     .collect(Collectors.toList());
-            dto.setGuests(guestDtos);
+            roomBooked.setGuests(guestDtos);
         }
-        
-        return dto;
-    }
-    
-    /**
-     * Maps BookRetailRateDetail (from BookResponse) to RetailRateDetailDto.
-     * BookRetailRateDetail uses single Price objects instead of lists.
-     */
-    private RetailRateDetailDto mapBookRetailRateDetail(
-            com.travelhub.connectors.nuitee.dto.response.BookResponse.RoomBooked.BookRetailRateDetail bookRetailRateDetail) {
-        if (bookRetailRateDetail == null) {
-            return null;
-        }
-        RetailRateDetailDto dto = new RetailRateDetailDto();
-        // Convert single Price objects to lists
-        if (bookRetailRateDetail.getTotal() != null) {
-            dto.setTotal(java.util.Collections.singletonList(mapPrice(bookRetailRateDetail.getTotal())));
-        }
-        if (bookRetailRateDetail.getSuggestedSellingPrice() != null) {
-            dto.setSuggestedSellingPrice(java.util.Collections.singletonList(mapPrice(bookRetailRateDetail.getSuggestedSellingPrice())));
-        }
-        // initialPrice is not present in BookRetailRateDetail
-        dto.setTaxesAndFees(mapTaxesAndFees(bookRetailRateDetail.getTaxesAndFees()));
-        return dto;
+
+        return roomBooked;
     }
 
     private BookResponseDto.GuestContactDto toGuestContactDto(
-           BookResponse.GuestContact source) {
+            BookResponse.GuestContact source) {
         if (source == null) {
             return null;
         }
-        BookResponseDto.GuestContactDto dto = new BookResponseDto.GuestContactDto();
-        dto.setFirstName(source.getFirstName());
-        dto.setLastName(source.getLastName());
-        dto.setEmail(source.getEmail());
-        dto.setPhone(source.getPhone());
-        return dto;
+        BookResponseDto.GuestContactDto guestContact = new BookResponseDto.GuestContactDto();
+        guestContact.setFirstName(source.getFirstName());
+        guestContact.setLastName(source.getLastName());
+        guestContact.setEmail(source.getEmail());
+        guestContact.setPhone(source.getPhone());
+        return guestContact;
     }
 
     // Booking List mapping methods
@@ -1099,60 +329,59 @@ public class BookingMapper {
             return new BookingListResponseDto();
         }
 
-        BookingListResponseDto dto = new BookingListResponseDto();
+        BookingListResponseDto bookingListResponse = new BookingListResponseDto();
         List<BookingListResponseDto.BookingDataDto> bookings = response.getData().stream()
                 .map(this::toBookingDataDto)
                 .collect(Collectors.toList());
-        dto.setData(bookings);
-        return dto;
+        bookingListResponse.setData(bookings);
+        return bookingListResponse;
     }
 
     private BookingListResponseDto.BookingDataDto toBookingDataDto(
-            com.travelhub.connectors.nuitee.dto.response.BookingListResponse.BookingData data) {
+            BookingListResponse.BookingData data) {
         if (data == null) {
             return null;
         }
 
-        BookingListResponseDto.BookingDataDto dto = new BookingListResponseDto.BookingDataDto();
-        dto.setBookingId(data.getBookingId());
-        dto.setClientReference(data.getClientReference());
-        dto.setStatus(data.getStatus());
-        dto.setCheckin(data.getCheckin());
-        dto.setCheckout(data.getCheckout());
-        dto.setPrice(data.getPrice());
-        dto.setCurrency(data.getCurrency());
+        BookingListResponseDto.BookingDataDto bookingData = new BookingListResponseDto.BookingDataDto();
+        bookingData.setBookingId(data.getBookingId());
+        bookingData.setClientReference(data.getClientReference());
+        bookingData.setStatus(data.getStatus());
+        bookingData.setCheckin(data.getCheckin());
+        bookingData.setCheckout(data.getCheckout());
+        bookingData.setPrice(data.getPrice());
+        bookingData.setCurrency(data.getCurrency());
 
         if (data.getHotel() != null) {
-            BookingListResponseDto.HotelInfoDto hotelDto = new BookingListResponseDto.HotelInfoDto();
-            hotelDto.setHotelId(data.getHotel().getHotelId());
-            hotelDto.setName(data.getHotel().getName());
-            dto.setHotel(hotelDto);
+            BookingListResponseDto.HotelInfoDto hotelInfo = new BookingListResponseDto.HotelInfoDto();
+            hotelInfo.setHotelId(data.getHotel().getHotelId());
+            hotelInfo.setName(data.getHotel().getName());
+            bookingData.setHotel(hotelInfo);
         }
 
         if (data.getRooms() != null) {
             List<BookingListResponseDto.RoomInfoDto> rooms = data.getRooms().stream()
                     .map(this::toRoomInfoDto)
                     .collect(Collectors.toList());
-            dto.setRooms(rooms);
+            bookingData.setRooms(rooms);
         }
 
-        return dto;
+        return bookingData;
     }
 
     private BookingListResponseDto.RoomInfoDto toRoomInfoDto(
-            com.travelhub.connectors.nuitee.dto.response.BookingListResponse.RoomInfo room) {
+            BookingListResponse.RoomInfo room) {
         if (room == null) {
             return null;
         }
 
-        BookingListResponseDto.RoomInfoDto dto = new BookingListResponseDto.RoomInfoDto();
-        dto.setRoomId(room.getRoomId());
-        dto.setAdults(room.getAdults());
-        dto.setAmount(room.getAmount());
-        dto.setCurrency(room.getCurrency());
-        return dto;
+        BookingListResponseDto.RoomInfoDto roomInfo = new BookingListResponseDto.RoomInfoDto();
+        roomInfo.setRoomId(room.getRoomId());
+        roomInfo.setAdults(room.getAdults());
+        roomInfo.setAmount(room.getAmount());
+        roomInfo.setCurrency(room.getCurrency());
+        return roomInfo;
     }
-
 
     public BookingListResponseDto.BookingDataDto mergeBookingEntityData(
             BookingListResponseDto.BookingDataDto nuiteeDto,
@@ -1172,7 +401,7 @@ public class BookingMapper {
         if (bookingEntity != null) {
             // Set clientReference from booking entity ID
             mergedDto.setClientReference(bookingEntity.getId());
-            
+
             // Override with booking entity data if available
             if (bookingEntity.getStatus() != null) {
                 mergedDto.setStatus(bookingEntity.getStatus());
@@ -1227,31 +456,5 @@ public class BookingMapper {
         }
 
         return mergedDto;
-    }
-
-    public BookResponseDto.HotelInfoDto toHotelInfoDto(
-            com.travelhub.connectors.nuitee.dto.response.HotelData hotelData) {
-        if (hotelData == null) {
-            return null;
-        }
-
-        BookResponseDto.HotelInfoDto dto = new BookResponseDto.HotelInfoDto();
-        dto.setHotelId(hotelData.getId());
-        dto.setName(hotelData.getName());
-        dto.setMainPhoto(hotelData.getMainPhoto());
-        dto.setThumbnail(hotelData.getThumbnail());
-        dto.setAddress(hotelData.getAddress());
-        dto.setCity(hotelData.getCity());
-        dto.setCountry(hotelData.getCountry());
-        dto.setZip(hotelData.getZip());
-        dto.setStarRating(hotelData.getStarRating());
-        dto.setRating(hotelData.getRating());
-        dto.setReviewCount(hotelData.getReviewCount());
-        dto.setLocation(toLocationDto(hotelData.getLocation()));
-        dto.setCheckinCheckoutTimes(toCheckinCheckoutTimesDto(hotelData.getCheckinCheckoutTimes()));
-        dto.setPhone(hotelData.getPhone());
-        dto.setEmail(hotelData.getEmail());
-        dto.setImages(toHotelImageDtos(hotelData.getHotelImages()));
-        return dto;
     }
 }

@@ -2,7 +2,7 @@ package com.travelhub.booking.service.impl;
 
 import com.travelhub.booking.dto.request.PlaceSearchRequestDto;
 import com.travelhub.booking.dto.response.PlaceSearchResponseDto;
-import com.travelhub.booking.mapper.BookingMapper;
+import com.travelhub.booking.mapper.HotelDataMapper;
 import com.travelhub.booking.service.HotelDataService;
 import com.travelhub.connectors.nuitee.NuiteeApiClient;
 import com.travelhub.connectors.nuitee.dto.response.PlaceResponse;
@@ -15,11 +15,11 @@ public class HotelDataServiceImpl implements HotelDataService {
 
         private static final Logger logger = LoggerFactory.getLogger(HotelDataServiceImpl.class);
         private final NuiteeApiClient nuiteeApiClient;
-        private final BookingMapper bookingMapper;
+        private final HotelDataMapper hotelDataMapper;
 
-        public HotelDataServiceImpl(NuiteeApiClient nuiteeApiClient, BookingMapper bookingMapper) {
+        public HotelDataServiceImpl(NuiteeApiClient nuiteeApiClient, HotelDataMapper hotelDataMapper) {
                 this.nuiteeApiClient = nuiteeApiClient;
-                this.bookingMapper = bookingMapper;
+                this.hotelDataMapper = hotelDataMapper;
         }
 
         @Override
@@ -35,7 +35,7 @@ public class HotelDataServiceImpl implements HotelDataService {
                                 connectorResponse.getData() != null ? connectorResponse.getData().size() : 0);
 
                 // Map the connector response to booking API response
-                PlaceSearchResponseDto response = bookingMapper.toPlaceSearchResponseDto(connectorResponse);
+                PlaceSearchResponseDto response = hotelDataMapper.toPlaceSearchResponseDto(connectorResponse);
                 logger.debug("Mapped connector response to DTO");
 
                 return response;
@@ -51,7 +51,7 @@ public class HotelDataServiceImpl implements HotelDataService {
                                                 language);
                 logger.info("Place details fetched - placeId: {}", placeId);
 
-                com.travelhub.booking.dto.response.PlaceDetailsDto response = bookingMapper
+                com.travelhub.booking.dto.response.PlaceDetailsDto response = hotelDataMapper
                                 .toPlaceDetailsDto(connectorResponse);
                 logger.debug("Mapped connector response to DTO");
 
@@ -74,7 +74,7 @@ public class HotelDataServiceImpl implements HotelDataService {
                 logger.info("Hotel reviews fetched - hotelId: {}, reviews count: {}",
                                 hotelId, connectorResponse.getData() != null ? connectorResponse.getData().size() : 0);
 
-                com.travelhub.booking.dto.response.HotelReviewsResponseDto response = bookingMapper
+                com.travelhub.booking.dto.response.HotelReviewsResponseDto response = hotelDataMapper
                                 .toHotelReviewsResponseDto(connectorResponse);
                 logger.debug("Mapped connector response to DTO");
 

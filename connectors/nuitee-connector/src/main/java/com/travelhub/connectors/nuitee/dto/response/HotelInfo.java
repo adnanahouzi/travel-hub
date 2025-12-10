@@ -6,15 +6,13 @@ import java.math.BigDecimal;
 public class HotelInfo {
     private String id;
     private String name;
-
     @JsonProperty("main_photo")
     private String mainPhoto;
 
     private String address;
     private BigDecimal rating;
     private Integer reviewCount;
-    private Integer starRating;
-    private Location location;
+
 
     public String getId() {
         return id;
@@ -64,19 +62,5 @@ public class HotelInfo {
         this.reviewCount = reviewCount;
     }
 
-    public Integer getStarRating() {
-        return starRating;
-    }
 
-    public void setStarRating(Integer starRating) {
-        this.starRating = starRating;
-    }
-
-    public Location getLocation() {
-        return location;
-    }
-
-    public void setLocation(Location location) {
-        this.location = location;
-    }
 }

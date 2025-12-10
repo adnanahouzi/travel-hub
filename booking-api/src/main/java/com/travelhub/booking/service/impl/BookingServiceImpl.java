@@ -6,7 +6,10 @@ import com.travelhub.booking.dto.response.BookResponseDto;
 import com.travelhub.booking.dto.response.BookingListResponseDto;
 import com.travelhub.booking.dto.response.PrebookResponseDto;
 import com.travelhub.booking.mapper.BookingMapper;
+import com.travelhub.booking.mapper.HotelDataMapper;
 import com.travelhub.booking.model.Booking;
+import com.travelhub.booking.model.BookingGuest;
+import com.travelhub.booking.model.BookingRoom;
 import com.travelhub.booking.model.BookingSimulation;
 import com.travelhub.booking.repository.BookingRepository;
 import com.travelhub.booking.repository.BookingSimulationRepository;
@@ -22,7 +25,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 @Service
 public class BookingServiceImpl implements BookingService {
@@ -33,15 +39,17 @@ public class BookingServiceImpl implements BookingService {
     private final BookingRepository bookingRepository;
     private final BookingSimulationRepository bookingSimulationRepository;
     private final HotelDataService hotelDataService;
+    private final HotelDataMapper hotelDataMapper;
 
     public BookingServiceImpl(NuiteeApiClient nuiteeApiClient, BookingMapper bookingMapper,
             BookingRepository bookingRepository, BookingSimulationRepository bookingSimulationRepository,
-            HotelDataService hotelDataService) {
+            HotelDataService hotelDataService, HotelDataMapper hotelDataMapper) {
         this.nuiteeApiClient = nuiteeApiClient;
         this.bookingMapper = bookingMapper;
         this.bookingRepository = bookingRepository;
         this.bookingSimulationRepository = bookingSimulationRepository;
         this.hotelDataService = hotelDataService;
+        this.hotelDataMapper = hotelDataMapper;
     }
 
     @Override
@@ -190,7 +198,7 @@ public class BookingServiceImpl implements BookingService {
                 // Create and save room entities
                 if (data.getRooms() != null && !data.getRooms().isEmpty()) {
                     for (BookResponse.RoomBooked roomData : data.getRooms()) {
-                        com.travelhub.booking.model.BookingRoom room = new com.travelhub.booking.model.BookingRoom();
+                        BookingRoom room = new BookingRoom();
                         room.setBooking(savedBooking);
                         room.setRoomName(roomData.getRoomName());
                         room.setBoardName(roomData.getBoardName());
@@ -200,7 +208,7 @@ public class BookingServiceImpl implements BookingService {
 
                 // Create and save guest entity
                 if (data.getHolder() != null) {
-                    com.travelhub.booking.model.BookingGuest guest = new com.travelhub.booking.model.BookingGuest();
+                    BookingGuest guest = new BookingGuest();
                     guest.setBooking(savedBooking);
                     guest.setFirstName(data.getHolder().getFirstName());
                     guest.setLastName(data.getHolder().getLastName());
@@ -250,7 +258,6 @@ public class BookingServiceImpl implements BookingService {
 
         logger.info("Found booking in database with bookingId: {}", booking.getBookingId());
 
-
         String liteApiBookingId = booking.getBookingId();
         BookResponse connectorResponse = null;
 
@@ -263,12 +270,12 @@ public class BookingServiceImpl implements BookingService {
             }
         }
 
-        BookResponseDto dto;
+        BookResponseDto bookResponse;
         if (connectorResponse != null) {
-            dto = bookingMapper.toBookResponseDto(connectorResponse);
+            bookResponse = bookingMapper.toBookResponseDto(connectorResponse);
         } else {
             // TODO use a mapper here
-            dto = new BookResponseDto();
+            bookResponse = new BookResponseDto();
             BookResponseDto.BookDataDto bookData = new BookResponseDto.BookDataDto();
             bookData.setBookingId(booking.getBookingId());
             bookData.setStatus(booking.getStatus());
@@ -277,25 +284,25 @@ public class BookingServiceImpl implements BookingService {
             bookData.setCheckout(booking.getCheckout() != null ? booking.getCheckout() : null);
             bookData.setHotelId(booking.getHotelId());
             bookData.setHotelName(booking.getHotelName());
-            dto.setData(bookData);
+            bookResponse.setData(bookData);
         }
 
-        if (dto != null && dto.getData() != null && dto.getData().getHotelId() != null) {
+        if (bookResponse != null && bookResponse.getData() != null && bookResponse.getData().getHotelId() != null) {
             try {
-                String hotelId = dto.getData().getHotelId();
+                String hotelId = bookResponse.getData().getHotelId();
                 logger.info("Fetching hotel details for hotelId: {}", hotelId);
                 HotelDetailsResponse hotelDetailsResponse = hotelDataService.getHotelDetails(hotelId, "fr");
                 if (hotelDetailsResponse != null && hotelDetailsResponse.getData() != null) {
                     HotelData hotelData = hotelDetailsResponse.getData();
-                    BookResponseDto.HotelInfoDto hotelInfo = bookingMapper.toHotelInfoDto(hotelData);
-                    dto.getData().setHotel(hotelInfo);
+                    BookResponseDto.HotelInfoDto hotelInfo = hotelDataMapper.toHotelInfoDto(hotelData);
+                    bookResponse.getData().setHotel(hotelInfo);
                 }
             } catch (Exception e) {
                 logger.warn("Failed to fetch hotel details: {}", e.getMessage());
             }
         }
 
-        return dto;
+        return bookResponse;
     }
 
     @Override
@@ -307,28 +314,27 @@ public class BookingServiceImpl implements BookingService {
 
         List<BookingListResponseDto.BookingDataDto> allBookingData = new ArrayList<>();
 
-
         for (Booking booking : bookings) {
             getBooking(allBookingData, booking);
         }
 
         List<String> uniqueHotelIds = allBookingData.stream()
                 .map(BookingListResponseDto.BookingDataDto::getHotelId)
-                .filter(java.util.Objects::nonNull)
+                .filter(Objects::nonNull)
                 .distinct()
                 .toList();
 
         logger.info("Found {} unique hotel IDs across bookings", uniqueHotelIds.size());
 
-        java.util.Map<String, com.travelhub.connectors.nuitee.dto.response.MinimalHotelData> hotelDataMap = new java.util.HashMap<>();
+        Map<String, MinimalHotelData> hotelDataMap = new HashMap<>();
 
         if (!uniqueHotelIds.isEmpty()) {
             try {
-               HotelsListRequest hotelsRequest = new com.travelhub.connectors.nuitee.dto.request.HotelsListRequest();
+                HotelsListRequest hotelsRequest = new HotelsListRequest();
                 hotelsRequest.setHotelIds(String.join(",", uniqueHotelIds));
 
                 logger.debug("Fetching hotel details for {} hotels", uniqueHotelIds.size());
-                com.travelhub.connectors.nuitee.dto.response.HotelsListResponse hotelsResponse = nuiteeApiClient
+                HotelsListResponse hotelsResponse = nuiteeApiClient
                         .getHotels(hotelsRequest);
 
                 if (hotelsResponse != null && hotelsResponse.getData() != null) {
@@ -375,7 +381,6 @@ public class BookingServiceImpl implements BookingService {
         return response;
     }
 
-
     private void getBooking(List<BookingListResponseDto.BookingDataDto> allBookingData, Booking booking) {
         try {
             String clientReference = booking.getId();
@@ -389,10 +394,10 @@ public class BookingServiceImpl implements BookingService {
                     && !connectorResponse.getData().isEmpty()) {
                 // Map connector response to DTO - expecting exactly one booking per
                 // clientReference
-                BookingListResponseDto dto = bookingMapper.toBookingListResponseDto(connectorResponse);
-                if (dto != null && dto.getData() != null && !dto.getData().isEmpty()) {
+                BookingListResponseDto bookingListResponse = bookingMapper.toBookingListResponseDto(connectorResponse);
+                if (bookingListResponse != null && bookingListResponse.getData() != null && !bookingListResponse.getData().isEmpty()) {
                     // LiteAPI returns exactly one booking per clientReference
-                    mergedDto = dto.getData().get(0);
+                    mergedDto = bookingListResponse.getData().get(0);
                 }
             }
 
