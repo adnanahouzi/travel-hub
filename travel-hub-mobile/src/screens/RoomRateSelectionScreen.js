@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
     View,
     Text,
@@ -11,13 +11,40 @@ import {
     Dimensions
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { differenceInDays } from 'date-fns';
 import { ApiService } from '../services/api.service';
+import { useBooking } from '../context/BookingContext';
 
 const { width } = Dimensions.get('window');
 
 export const RoomRateSelectionScreen = ({ navigation, route }) => {
     const { roomGroup } = route.params || {};
+    const { searchParams } = useBooking();
     const [selectedRateId, setSelectedRateId] = useState(null);
+    
+    // Calculate number of nights from checkin/checkout dates
+    const numberOfNights = useMemo(() => {
+        if (searchParams?.checkin && searchParams?.checkout) {
+            const checkinDate = new Date(searchParams.checkin);
+            const checkoutDate = new Date(searchParams.checkout);
+            const nights = differenceInDays(checkoutDate, checkinDate);
+            return nights > 0 ? nights : 1;
+        }
+        return 1;
+    }, [searchParams?.checkin, searchParams?.checkout]);
+    
+    // Get number of rooms from occupancies or roomBreakdown
+    const numberOfRooms = useMemo(() => {
+        // Try to get from roomBreakdown first
+        if (roomGroup?.roomBreakdown && roomGroup.roomBreakdown.length > 0) {
+            return roomGroup.roomBreakdown.reduce((sum, room) => sum + (room.count || 1), 0);
+        }
+        // Fallback to occupancies length
+        if (searchParams?.occupancies && searchParams.occupancies.length > 0) {
+            return searchParams.occupancies.length;
+        }
+        return 1;
+    }, [roomGroup?.roomBreakdown, searchParams?.occupancies]);
 
     // Use the first offer in the group for display details (images, title, capacity)
     // as they are all the same room configuration
@@ -98,9 +125,17 @@ export const RoomRateSelectionScreen = ({ navigation, route }) => {
         // Price Calculation (use offerRetailRate - mapped to total in RetailRateDetailDto)
         const totalPrice = item.retailRate?.total?.[0]?.amount || 0;
         const currency = item.retailRate?.total?.[0]?.currency || 'MAD';
+        // Use totalPerNight calculated by backend (total / numberOfNights)
+        const pricePerNight = item.retailRate?.totalPerNight?.[0]?.amount || totalPrice;
+        const currencyPerNight = item.retailRate?.totalPerNight?.[0]?.currency || currency;
         // offerInitialPrice is mapped to initialPrice in RetailRateDetailDto
         const initialPrice = item.retailRate?.initialPrice?.[0]?.amount;
         const formattedPrice = new Intl.NumberFormat('fr-MA', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        }).format(pricePerNight);
+        // Format total price from backend
+        const formattedTotalPrice = new Intl.NumberFormat('fr-MA', {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2
         }).format(totalPrice);
@@ -134,11 +169,13 @@ export const RoomRateSelectionScreen = ({ navigation, route }) => {
                             </Text>
                         )}
                         <View style={styles.priceRow}>
-                            <Text style={styles.price}>{formattedPrice} {currency}</Text>
+                            <Text style={styles.price}>{formattedPrice} {currencyPerNight}</Text>
                             <Text style={styles.perNight}>/La nuitée</Text>
                         </View>
-                        <Text style={styles.totalPrice}>{(totalPrice * 2).toFixed(2)}DH Total</Text>
-                        <Text style={styles.duration}>2 night, {item.roomBreakdown?.[0]?.count || 1} Rooms</Text>
+                        <Text style={styles.totalPrice}>{formattedTotalPrice} {currency} Total</Text>
+                        <Text style={styles.duration}>
+                            {numberOfNights} {numberOfNights === 1 ? 'nuitée' : 'nuitées'}, {numberOfRooms} {numberOfRooms === 1 ? 'chambre' : 'chambres'}
+                        </Text>
                     </View>
 
                     <TouchableOpacity

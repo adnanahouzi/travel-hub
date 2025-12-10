@@ -7,6 +7,7 @@ public class RetailRateDetailDto {
     private List<PriceDto> suggestedSellingPrice;
     private List<PriceDto> initialPrice;
     private List<TaxAndFeeDto> taxesAndFees;
+    private List<PriceDto> totalPerNight;
 
     public List<PriceDto> getTotal() {
         return total;
@@ -38,6 +39,14 @@ public class RetailRateDetailDto {
 
     public void setTaxesAndFees(List<TaxAndFeeDto> taxesAndFees) {
         this.taxesAndFees = taxesAndFees;
+    }
+
+    public List<PriceDto> getTotalPerNight() {
+        return totalPerNight;
+    }
+
+    public void setTotalPerNight(List<PriceDto> totalPerNight) {
+        this.totalPerNight = totalPerNight;
     }
 }
 

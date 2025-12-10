@@ -125,21 +125,13 @@ public class RateServiceImpl implements RateService {
                         }
                 }
 
-
-                //
-
-            roomTypes.forEach(roomType -> {
-                // TODO roomType represent one offer each roomType contains a list of rates wich represent
-
-            });
-
-
-
                 // Step 4: Combine hotel details with rates and map room details
                 logger.debug("Mapping hotel details and rates to response DTO");
+                String checkinStr = request.getCheckin() != null ? request.getCheckin().toString() : null;
+                String checkoutStr = request.getCheckout() != null ? request.getCheckout().toString() : null;
                 HotelRateResponseDto response = hotelDataMapper.toHotelRateResponseDto(
                                 hotelDetails != null ? hotelDetails.getData() : null,
-                                roomTypes, rateMapper);
+                                roomTypes, rateMapper, checkinStr, checkoutStr);
 
                 return response;
         }

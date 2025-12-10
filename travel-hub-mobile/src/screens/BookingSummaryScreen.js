@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -26,7 +26,23 @@ export const BookingSummaryScreen = ({ navigation, route }) => {
   const { selectedHotel, searchParams } = useBooking();
 
   // Data Mapping - now using single prebookResponse instead of batch
-  const totalPrice = prebookResponse?.data?.suggestedSellingPrice || 0;
+  // Calculate total from retailRate.total (sum of all rates) instead of suggestedSellingPrice
+  const totalPrice = useMemo(() => {
+    if (prebookResponse?.data?.roomTypes) {
+      let sum = 0;
+      prebookResponse.data.roomTypes.forEach(roomType => {
+        if (roomType.rates) {
+          roomType.rates.forEach(rate => {
+            const rateTotal = rate.retailRate?.total?.[0]?.amount || 0;
+            sum += rateTotal;
+          });
+        }
+      });
+      return sum > 0 ? sum : (prebookResponse?.data?.price || 0);
+    }
+    return prebookResponse?.data?.price || prebookResponse?.data?.suggestedSellingPrice || 0;
+  }, [prebookResponse]);
+  
   const currency = prebookResponse?.data?.currency || 'MAD';
   const totalIncludedTaxes = prebookResponse?.data?.totalIncludedTaxes || 0;
   const totalExcludedTaxes = prebookResponse?.data?.totalExcludedTaxes || 0;

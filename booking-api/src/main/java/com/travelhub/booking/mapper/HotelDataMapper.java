@@ -48,11 +48,33 @@ public class HotelDataMapper {
 
     // Hotel rate response mapping
     public HotelRateResponseDto toHotelRateResponseDto(HotelData hotelData,
-            List<RoomType> roomTypes, RateMapper rateMapper) {
+            List<RoomType> roomTypes, RateMapper rateMapper, String checkin, String checkout) {
         if (hotelData == null) {
             return null;
         }
 
+        HotelRateResponseDto response = mapHotelData(hotelData);
+
+        // Calculate number of nights
+        Integer numberOfNights = rateMapper.calculateNumberOfNights(checkin, checkout);
+
+        // Group rates by offerId with room breakdown, then by configuration
+        List<GroupedRateDto> offers = rateMapper.groupByOffer(roomTypes, hotelData.getRooms(), numberOfNights);
+
+        response.setGroupedRates(rateMapper.groupRatesByConfiguration(offers));
+
+        return response;
+    }
+    
+    /**
+     * Overloaded method for backward compatibility
+     */
+    public HotelRateResponseDto toHotelRateResponseDto(HotelData hotelData,
+            List<RoomType> roomTypes, RateMapper rateMapper) {
+        return toHotelRateResponseDto(hotelData, roomTypes, rateMapper, null, null);
+    }
+
+    private HotelRateResponseDto mapHotelData(HotelData hotelData) {
         HotelRateResponseDto response = new HotelRateResponseDto();
         response.setHotelId(hotelData.getId());
         response.setName(hotelData.getName());
@@ -73,20 +95,12 @@ public class HotelDataMapper {
         response.setPhone(hotelData.getPhone());
         response.setEmail(hotelData.getEmail());
         response.setCheckinCheckoutTimes(toCheckinCheckoutTimesDto(hotelData.getCheckinCheckoutTimes()));
-        
+
         // Map sentiment analysis from HotelData
         if (hotelData.getSentimentAnalysis() != null) {
             SentimentAnalysisDto sentimentDto = toSentimentAnalysisDto(hotelData.getSentimentAnalysis());
             response.setSentimentAnalysis(sentimentDto);
         }
-
-
-
-        // Group rates by offerId with room breakdown, then by configuration
-        List<GroupedRateDto> offers = rateMapper.groupByOffer(roomTypes, hotelData.getRooms());
-
-        response.setGroupedRates(rateMapper.groupRatesByConfiguration(offers));
-
         return response;
     }
 

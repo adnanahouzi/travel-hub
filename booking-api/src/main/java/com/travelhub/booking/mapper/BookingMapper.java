@@ -172,7 +172,13 @@ public class BookingMapper {
         bookData.setCheckout(source.getCheckout());
         bookData.setHotelId(source.getHotelId());
         bookData.setHotelName(source.getHotelName());
-        bookData.setRooms(toRoomBookedDtos(source.getRooms()));
+        
+        // Calculate number of nights for totalPerNight calculation
+        Integer numberOfNights = null;
+        if (source.getCheckin() != null && source.getCheckout() != null) {
+            numberOfNights = rateMapper.calculateNumberOfNights(source.getCheckin(), source.getCheckout());
+        }
+        bookData.setRooms(toRoomBookedDtos(source.getRooms(), numberOfNights));
         bookData.setGuest(toGuestContactDto(source.getHolder()));
         bookData.setHolder(toGuestContactDto(source.getHolder())); // holder is same as guest in connector
         bookData.setCreatedAt(source.getCreatedAt());
@@ -237,15 +243,15 @@ public class BookingMapper {
     }
 
     private List<BookResponseDto.RoomBookedDto> toRoomBookedDtos(
-            List<BookResponse.RoomBooked> sourceList) {
+            List<BookResponse.RoomBooked> sourceList, Integer numberOfNights) {
         if (sourceList == null) {
             return null;
         }
-        return sourceList.stream().map(this::toRoomBookedDto).collect(Collectors.toList());
+        return sourceList.stream().map(source -> toRoomBookedDto(source, numberOfNights)).collect(Collectors.toList());
     }
 
     private BookResponseDto.RoomBookedDto toRoomBookedDto(
-            BookResponse.RoomBooked source) {
+            BookResponse.RoomBooked source, Integer numberOfNights) {
         if (source == null) {
             return null;
         }
@@ -284,7 +290,7 @@ public class BookingMapper {
             rateDetail.setRemarks(source.getRate().getRemarks());
             rateDetail.setPerks(source.getRate().getPerks());
             if (source.getRate().getRetailRate() != null) {
-                rateDetail.setRetailRate(rateMapper.mapBookRetailRateDetail(source.getRate().getRetailRate()));
+                rateDetail.setRetailRate(rateMapper.mapBookRetailRateDetail(source.getRate().getRetailRate(), numberOfNights));
             }
             if (source.getRate().getCancellationPolicies() != null) {
                 rateDetail.setCancellationPolicies(

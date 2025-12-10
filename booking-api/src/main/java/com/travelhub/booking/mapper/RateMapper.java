@@ -8,6 +8,10 @@ import com.travelhub.connectors.nuitee.dto.response.*;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -141,7 +145,7 @@ public class RateMapper {
                 .collect(Collectors.toList());
     }
 
-    public RoomTypeDto mapRoomType(RoomType roomType) {
+    public RoomTypeDto mapRoomType(RoomType roomType, Integer numberOfNights) {
         if (roomType == null) {
             return null;
         }
@@ -150,7 +154,7 @@ public class RateMapper {
         roomTypeDto.setOfferId(roomType.getOfferId());
         roomTypeDto.setSupplier(roomType.getSupplier());
         roomTypeDto.setSupplierId(roomType.getSupplierId());
-        roomTypeDto.setRates(mapRates(roomType.getRates(), roomType.getOfferId()));
+        roomTypeDto.setRates(mapRates(roomType.getRates(), roomType.getOfferId(), numberOfNights));
         roomTypeDto.setOfferRetailRate(mapPrice(roomType.getOfferRetailRate()));
         roomTypeDto.setSuggestedSellingPrice(mapPrice(roomType.getSuggestedSellingPrice()));
         roomTypeDto.setOfferInitialPrice(mapPrice(roomType.getOfferInitialPrice()));
@@ -159,14 +163,21 @@ public class RateMapper {
         roomTypeDto.setPaymentTypes(roomType.getPaymentTypes());
         return roomTypeDto;
     }
+    
+    /**
+     * Overloaded method for backward compatibility
+     */
+    public RoomTypeDto mapRoomType(RoomType roomType) {
+        return mapRoomType(roomType, null);
+    }
 
-    private List<RateDto> mapRates(List<Rate> rates, String offerId) {
+    private List<RateDto> mapRates(List<Rate> rates, String offerId, Integer numberOfNights) {
         if (rates == null) {
             return null;
         }
         return rates.stream()
                 .map(rate -> {
-                    RateDto rateDto = toRateDto(rate);
+                    RateDto rateDto = toRateDto(rate, numberOfNights);
                     if (rateDto != null) {
                         rateDto.setOfferId(offerId);
                     }
@@ -174,8 +185,15 @@ public class RateMapper {
                 })
                 .collect(Collectors.toList());
     }
+    
+    /**
+     * Overloaded method for backward compatibility
+     */
+    private List<RateDto> mapRates(List<Rate> rates, String offerId) {
+        return mapRates(rates, offerId, null);
+    }
 
-    public RateDto toRateDto(Rate rate) {
+    public RateDto toRateDto(Rate rate, Integer numberOfNights) {
         if (rate == null) {
             return null;
         }
@@ -192,7 +210,7 @@ public class RateMapper {
         rateDto.setRemarks(rate.getRemarks());
         rateDto.setPriceType(rate.getPriceType());
         rateDto.setCommission(mapPrices(rate.getCommission()));
-        rateDto.setRetailRate(mapRetailRateDetail(rate.getRetailRate()));
+        rateDto.setRetailRate(mapRetailRateDetail(rate.getRetailRate(), numberOfNights));
         rateDto.setCancellationPolicies(mapCancellationPolicyDetail(rate.getCancellationPolicies()));
         rateDto.setMappedRoomId(rate.getMappedRoomId());
         rateDto.setPaymentTypes(rate.getPaymentTypes());
@@ -221,16 +239,43 @@ public class RateMapper {
         return priceDto;
     }
 
-    private RetailRateDetailDto mapRetailRateDetail(RetailRateDetail retailRateDetail) {
+    private RetailRateDetailDto mapRetailRateDetail(RetailRateDetail retailRateDetail, Integer numberOfNights) {
         if (retailRateDetail == null) {
             return null;
         }
         RetailRateDetailDto retailRateDetailDto = new RetailRateDetailDto();
-        retailRateDetailDto.setTotal(mapPrices(retailRateDetail.getTotal()));
+        List<PriceDto> totalPrices = mapPrices(retailRateDetail.getTotal());
+        retailRateDetailDto.setTotal(totalPrices);
         retailRateDetailDto.setSuggestedSellingPrice(mapPrices(retailRateDetail.getSuggestedSellingPrice()));
         retailRateDetailDto.setInitialPrice(mapPrices(retailRateDetail.getInitialPrice()));
         retailRateDetailDto.setTaxesAndFees(mapTaxesAndFees(retailRateDetail.getTaxesAndFees()));
+        
+        // Calculate totalPerNight = total / numberOfNights
+        if (numberOfNights != null && numberOfNights > 0 && totalPrices != null && !totalPrices.isEmpty()) {
+            List<PriceDto> totalPerNightPrices = totalPrices.stream()
+                    .map(price -> {
+                        PriceDto perNightPrice = new PriceDto();
+                        perNightPrice.setCurrency(price.getCurrency());
+                        perNightPrice.setSource(price.getSource());
+                        if (price.getAmount() != null) {
+                            BigDecimal perNightAmount = price.getAmount()
+                                    .divide(BigDecimal.valueOf(numberOfNights), 2, RoundingMode.HALF_UP);
+                            perNightPrice.setAmount(perNightAmount);
+                        }
+                        return perNightPrice;
+                    })
+                    .collect(Collectors.toList());
+            retailRateDetailDto.setTotalPerNight(totalPerNightPrices);
+        }
+        
         return retailRateDetailDto;
+    }
+    
+    /**
+     * Overloaded method for backward compatibility
+     */
+    private RetailRateDetailDto mapRetailRateDetail(RetailRateDetail retailRateDetail) {
+        return mapRetailRateDetail(retailRateDetail, null);
     }
 
     private List<TaxAndFeeDto> mapTaxesAndFees(List<TaxAndFee> taxesAndFees) {
@@ -292,7 +337,7 @@ public class RateMapper {
      * Each RoomType (offer) becomes a GroupedRateDto with its rooms aggregated.
      */
     public List<GroupedRateDto> groupByOffer(
-            List<com.travelhub.connectors.nuitee.dto.response.RoomType> roomTypes, List<Room> hotelRooms) {
+            List<com.travelhub.connectors.nuitee.dto.response.RoomType> roomTypes, List<Room> hotelRooms, Integer numberOfNights) {
         if (roomTypes == null) {
             return null;
         }
@@ -318,12 +363,12 @@ public class RateMapper {
                     grouped.setCancellationPolicies(mapCancellationPolicyDetail(firstRate.getCancellationPolicies()));
 
                     // Use offer-level retail rate
-                    grouped.setRetailRate(mapOfferPricesToRetailRateDetail(roomType));
+                    grouped.setRetailRate(mapOfferPricesToRetailRateDetail(roomType, numberOfNights));
 
                     // Group rates by mappedRoomId to create room breakdown
                     java.util.Map<Long, List<RateDto>> ratesByRoom = new java.util.LinkedHashMap<>();
                     for (Rate rate : rates) {
-                        RateDto rateDto = toRateDto(rate);
+                        RateDto rateDto = toRateDto(rate, numberOfNights);
                         if (rateDto != null) {
                             rateDto.setOfferId(roomType.getOfferId());
 
@@ -464,14 +509,16 @@ public class RateMapper {
      * Maps offer-level prices to RetailRateDetailDto.
      */
     private RetailRateDetailDto mapOfferPricesToRetailRateDetail(
-            com.travelhub.connectors.nuitee.dto.response.RoomType roomType) {
+            com.travelhub.connectors.nuitee.dto.response.RoomType roomType, Integer numberOfNights) {
         if (roomType == null) {
             return null;
         }
 
         RetailRateDetailDto retailRateDetail = new RetailRateDetailDto();
+        List<PriceDto> totalPrices = null;
         if (roomType.getOfferRetailRate() != null) {
-            retailRateDetail.setTotal(java.util.Collections.singletonList(mapPrice(roomType.getOfferRetailRate())));
+            totalPrices = java.util.Collections.singletonList(mapPrice(roomType.getOfferRetailRate()));
+            retailRateDetail.setTotal(totalPrices);
         }
         if (roomType.getSuggestedSellingPrice() != null) {
             retailRateDetail.setSuggestedSellingPrice(
@@ -480,9 +527,55 @@ public class RateMapper {
         if (roomType.getOfferInitialPrice() != null) {
             retailRateDetail.setInitialPrice(java.util.Collections.singletonList(mapPrice(roomType.getOfferInitialPrice())));
         }
+        
+        // Calculate totalPerNight = total / numberOfNights
+        if (numberOfNights != null && numberOfNights > 0 && totalPrices != null && !totalPrices.isEmpty()) {
+            List<PriceDto> totalPerNightPrices = totalPrices.stream()
+                    .map(price -> {
+                        PriceDto perNightPrice = new PriceDto();
+                        perNightPrice.setCurrency(price.getCurrency());
+                        perNightPrice.setSource(price.getSource());
+                        if (price.getAmount() != null) {
+                            BigDecimal perNightAmount = price.getAmount()
+                                    .divide(BigDecimal.valueOf(numberOfNights), 2, RoundingMode.HALF_UP);
+                            perNightPrice.setAmount(perNightAmount);
+                        }
+                        return perNightPrice;
+                    })
+                    .collect(Collectors.toList());
+            retailRateDetail.setTotalPerNight(totalPerNightPrices);
+        }
+        
         // Taxes are not explicitly available at offer level in simple Price object,
         // but Total includes them if the connector logic works as expected.
         return retailRateDetail;
+    }
+    
+    /**
+     * Overloaded method for backward compatibility
+     */
+    private RetailRateDetailDto mapOfferPricesToRetailRateDetail(
+            com.travelhub.connectors.nuitee.dto.response.RoomType roomType) {
+        return mapOfferPricesToRetailRateDetail(roomType, null);
+    }
+    
+    /**
+     * Calculate number of nights between checkin and checkout dates.
+     * Dates are expected in format "YYYY-MM-DD"
+     */
+    public Integer calculateNumberOfNights(String checkin, String checkout) {
+        if (checkin == null || checkout == null) {
+            return null;
+        }
+        try {
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+            LocalDate checkinDate = LocalDate.parse(checkin, formatter);
+            LocalDate checkoutDate = LocalDate.parse(checkout, formatter);
+            long nights = ChronoUnit.DAYS.between(checkinDate, checkoutDate);
+            return (int) nights;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private void enrichRateWithRoomDetails(RateDto rateDto, Room room) {
@@ -522,21 +615,50 @@ public class RateMapper {
     }
 
     public RetailRateDetailDto mapBookRetailRateDetail(
-            com.travelhub.connectors.nuitee.dto.response.BookResponse.RoomBooked.BookRetailRateDetail bookRetailRateDetail) {
+            com.travelhub.connectors.nuitee.dto.response.BookResponse.RoomBooked.BookRetailRateDetail bookRetailRateDetail, Integer numberOfNights) {
         if (bookRetailRateDetail == null) {
             return null;
         }
         RetailRateDetailDto bookRetailRateDetailDto = new RetailRateDetailDto();
         // Convert single Price objects to lists
+        List<PriceDto> totalPrices = null;
         if (bookRetailRateDetail.getTotal() != null) {
-            bookRetailRateDetailDto.setTotal(java.util.Collections.singletonList(mapPrice(bookRetailRateDetail.getTotal())));
+            totalPrices = java.util.Collections.singletonList(mapPrice(bookRetailRateDetail.getTotal()));
+            bookRetailRateDetailDto.setTotal(totalPrices);
         }
         if (bookRetailRateDetail.getSuggestedSellingPrice() != null) {
             bookRetailRateDetailDto.setSuggestedSellingPrice(java.util.Collections.singletonList(mapPrice(bookRetailRateDetail.getSuggestedSellingPrice())));
         }
         // initialPrice is not present in BookRetailRateDetail
         bookRetailRateDetailDto.setTaxesAndFees(mapTaxesAndFees(bookRetailRateDetail.getTaxesAndFees()));
+        
+        // Calculate totalPerNight = total / numberOfNights
+        if (numberOfNights != null && numberOfNights > 0 && totalPrices != null && !totalPrices.isEmpty()) {
+            List<PriceDto> totalPerNightPrices = totalPrices.stream()
+                    .map(price -> {
+                        PriceDto perNightPrice = new PriceDto();
+                        perNightPrice.setCurrency(price.getCurrency());
+                        perNightPrice.setSource(price.getSource());
+                        if (price.getAmount() != null) {
+                            BigDecimal perNightAmount = price.getAmount()
+                                    .divide(BigDecimal.valueOf(numberOfNights), 2, RoundingMode.HALF_UP);
+                            perNightPrice.setAmount(perNightAmount);
+                        }
+                        return perNightPrice;
+                    })
+                    .collect(Collectors.toList());
+            bookRetailRateDetailDto.setTotalPerNight(totalPerNightPrices);
+        }
+        
         return bookRetailRateDetailDto;
+    }
+    
+    /**
+     * Overloaded method for backward compatibility
+     */
+    public RetailRateDetailDto mapBookRetailRateDetail(
+            com.travelhub.connectors.nuitee.dto.response.BookResponse.RoomBooked.BookRetailRateDetail bookRetailRateDetail) {
+        return mapBookRetailRateDetail(bookRetailRateDetail, null);
     }
 }
 
