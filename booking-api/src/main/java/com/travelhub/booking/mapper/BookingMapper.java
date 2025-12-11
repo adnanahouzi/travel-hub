@@ -37,19 +37,26 @@ public class BookingMapper {
     }
 
     public PrebookResponseDto toPrebookResponseDto(
-            PrebookResponse response) {
+            PrebookResponse response, List<com.travelhub.connectors.nuitee.dto.response.Room> hotelRooms) {
         if (response == null) {
             return null;
         }
         PrebookResponseDto prebookResponse = new PrebookResponseDto();
-        prebookResponse.setData(toPrebookDataDto(response.getData()));
+        prebookResponse.setData(toPrebookDataDto(response.getData(), hotelRooms));
         prebookResponse.setGuestLevel(response.getGuestLevel());
         prebookResponse.setSandbox(response.getSandbox());
         return prebookResponse;
     }
+    
+    /**
+     * Overloaded method for backward compatibility
+     */
+    public PrebookResponseDto toPrebookResponseDto(PrebookResponse response) {
+        return toPrebookResponseDto(response, null);
+    }
 
     private PrebookResponseDto.PrebookDataDto toPrebookDataDto(
-            PrebookResponse.PrebookData data) {
+            PrebookResponse.PrebookData data, List<com.travelhub.connectors.nuitee.dto.response.Room> hotelRooms) {
         if (data == null) {
             return null;
         }
@@ -60,10 +67,28 @@ public class BookingMapper {
         prebookData.setCurrency(data.getCurrency());
         prebookData.setTermsAndConditions(data.getTermsAndConditions());
 
-        // Map roomTypes if present
+        // Map roomTypes if present and enrich with hotel room details
         if (data.getRoomTypes() != null) {
             List<RoomTypeDto> roomTypeDtos = data.getRoomTypes().stream()
-                    .map((RoomType roomType) -> rateMapper.mapRoomType(roomType))
+                    .map((RoomType roomType) -> {
+                        RoomTypeDto roomTypeDto = rateMapper.mapRoomType(roomType);
+                        // Enrich rates with hotel room details using mappedRoomId
+                        if (roomTypeDto.getRates() != null && hotelRooms != null) {
+                            roomTypeDto.getRates().forEach(rateDto -> {
+                                if (rateDto.getMappedRoomId() != null) {
+                                    com.travelhub.connectors.nuitee.dto.response.Room matchingRoom = hotelRooms.stream()
+                                            .filter(room -> room.getId() != null && 
+                                                    rateDto.getMappedRoomId().longValue() == room.getId().longValue())
+                                            .findFirst()
+                                            .orElse(null);
+                                    if (matchingRoom != null) {
+                                        rateMapper.enrichRateWithRoomDetails(rateDto, matchingRoom);
+                                    }
+                                }
+                            });
+                        }
+                        return roomTypeDto;
+                    })
                     .collect(Collectors.toList());
             prebookData.setRoomTypes(roomTypeDtos);
         }

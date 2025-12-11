@@ -102,14 +102,33 @@ export const RoomRateSelectionScreen = ({ navigation, route }) => {
     };
 
     const getBreakfastTag = (offer) => {
-        const hasBreakfast =
-            (offer.boardName && (offer.boardName.toLowerCase().includes('breakfast') || offer.boardName.toLowerCase().includes('petit-déjeuner'))) ||
-            (offer.perks && offer.perks.some(p => p.toLowerCase().includes('breakfast') || p.toLowerCase().includes('petit-déjeuner')));
+        // Check for All Inclusive (AI) - Tout compris
+        const hasAllInclusive =
+            (offer.boardType === 'AI') ||
+            (offer.boardName && (offer.boardName.toLowerCase().includes('all inclusive') || offer.boardName.toLowerCase().includes('tout compris')));
 
+        // Check for Full Board (FB) - Pension complète
+        const hasFullBoard =
+            (offer.boardType === 'FB') ||
+            (offer.boardName && (offer.boardName.toLowerCase().includes('full board') || offer.boardName.toLowerCase().includes('pension complète') || offer.boardName.toLowerCase().includes('pension complete')));
+
+        // Check for Half Board (HB) - Demi-pension
         const hasHalfBoard =
             (offer.boardType === 'HB') ||
             (offer.boardName && (offer.boardName.toLowerCase().includes('half board') || offer.boardName.toLowerCase().includes('demi')));
 
+        // Check for Breakfast (BB) - Petit-déjeuner
+        const hasBreakfast =
+            (offer.boardType === 'BB') ||
+            (offer.boardName && (offer.boardName.toLowerCase().includes('breakfast') || offer.boardName.toLowerCase().includes('petit-déjeuner'))) ||
+            (offer.perks && offer.perks.some(p => p.toLowerCase().includes('breakfast') || p.toLowerCase().includes('petit-déjeuner')));
+
+        if (hasAllInclusive) {
+            return { text: 'Tout compris', color: '#059669', icon: 'restaurant-outline' };
+        }
+        if (hasFullBoard) {
+            return { text: 'Pension complète', color: '#059669', icon: 'restaurant-outline' };
+        }
         if (hasHalfBoard) {
             return { text: 'Demi-pension', color: '#059669', icon: 'restaurant-outline' };
         }

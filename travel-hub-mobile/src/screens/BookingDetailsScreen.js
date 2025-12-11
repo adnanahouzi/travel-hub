@@ -146,6 +146,57 @@ export const BookingDetailsScreen = ({ route, navigation }) => {
         hotelDetails?.zip
     ].filter(Boolean).join(', ');
 
+    // Get status configuration
+    const getStatusConfig = (status) => {
+        switch (status?.toUpperCase()) {
+            case 'CONFIRMED':
+                return { 
+                    label: 'Confirmé', 
+                    color: '#10B981', 
+                    bgColor: '#ECFDF5',
+                    icon: 'checkmark-circle'
+                };
+            case 'PENDING':
+                return { 
+                    label: 'En attente', 
+                    color: '#F59E0B', 
+                    bgColor: '#FEF3C7',
+                    icon: 'time'
+                };
+            case 'COMPLETED':
+                return { 
+                    label: 'Complété', 
+                    color: '#3B82F6', 
+                    bgColor: '#EFF6FF',
+                    icon: 'checkmark-done-circle'
+                };
+            case 'CANCELLED':
+            case 'CANCELLED_WITH_CHARGES':
+                return { 
+                    label: 'Annulé', 
+                    color: '#EF4444', 
+                    bgColor: '#FEE2E2',
+                    icon: 'close-circle'
+                };
+            case 'FAILED':
+                return { 
+                    label: 'Échoué', 
+                    color: '#DC2626', 
+                    bgColor: '#FEE2E2',
+                    icon: 'alert-circle'
+                };
+            default:
+                return { 
+                    label: status || 'En cours', 
+                    color: '#6B7280', 
+                    bgColor: '#F3F4F6',
+                    icon: 'information-circle'
+                };
+        }
+    };
+
+    const statusConfig = getStatusConfig(booking.status);
+
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.header}>
@@ -164,6 +215,16 @@ export const BookingDetailsScreen = ({ route, navigation }) => {
                     />
                     <View style={styles.hotelNameOverlay}>
                         <Text style={styles.hotelName}>{booking.hotelName}</Text>
+                    </View>
+                </View>
+
+                {/* Booking Status Badge */}
+                <View style={styles.statusContainer}>
+                    <View style={[styles.statusBadge, { backgroundColor: statusConfig.bgColor }]}>
+                        <Ionicons name={statusConfig.icon} size={18} color={statusConfig.color} />
+                        <Text style={[styles.statusText, { color: statusConfig.color }]}>
+                            {statusConfig.label}
+                        </Text>
                     </View>
                 </View>
 
@@ -535,6 +596,31 @@ const styles = StyleSheet.create({
         textShadowColor: 'rgba(0, 0, 0, 0.75)',
         textShadowOffset: { width: 0, height: 2 },
         textShadowRadius: 4,
+    },
+    // Status Badge Section
+    statusContainer: {
+        paddingHorizontal: 20,
+        paddingTop: 16,
+        paddingBottom: 8,
+    },
+    statusBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        alignSelf: 'flex-start',
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderRadius: 20,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+    },
+    statusText: {
+        fontSize: 14,
+        fontWeight: '600',
+        marginLeft: 8,
+        letterSpacing: 0.5,
     },
     section: {
         marginBottom: 24,

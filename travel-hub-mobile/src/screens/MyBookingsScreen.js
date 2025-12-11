@@ -79,7 +79,13 @@ export const MyBookingsScreen = ({ navigation }) => {
 
     const handleBookingPress = (booking) => {
         // Use clientReference which is the database ID, not bookingId which is the LiteAPI ID
-        navigation.navigate('BookingDetails', { id: booking.clientReference });
+        const bookingId = booking.clientReference || booking.id;
+        if (bookingId) {
+            navigation.navigate('BookingDetails', { id: bookingId });
+        } else {
+            console.error('No booking ID found:', booking);
+            Alert.alert('Erreur', 'Impossible d\'accéder aux détails de la réservation');
+        }
     };
 
     const handleBookAgain = (booking) => {
@@ -102,42 +108,50 @@ export const MyBookingsScreen = ({ navigation }) => {
 
         return (
             <>
-                <TouchableOpacity
-                    style={styles.bookingCard}
-                    onPress={() => handleBookingPress(item)}
-                    activeOpacity={0.7}
-                >
-                    <Image
-                        source={{ uri: hotelImage }}
-                        style={styles.hotelImage}
-                        resizeMode="cover"
-                    />
+                <View style={styles.bookingCard}>
+                    <TouchableOpacity
+                        style={styles.bookingCardContent}
+                        onPress={() => handleBookingPress(item)}
+                        activeOpacity={0.7}
+                    >
+                        <Image
+                            source={{ uri: hotelImage }}
+                            style={styles.hotelImage}
+                            resizeMode="cover"
+                        />
 
-                    <View style={styles.bookingInfo}>
-                        <View style={styles.bookingHeader}>
-                            <Text style={styles.hotelName} numberOfLines={1}>
-                                {item.hotelName || item.hotel?.name || 'Hôtel'}
-                            </Text>
-                            <View style={[styles.statusBadge, { backgroundColor: statusConfig.bgColor }]}>
-                                <Text style={[styles.statusText, { color: statusConfig.color }]}>
-                                    {statusConfig.label}
+                        <View style={styles.bookingInfo}>
+                            <View style={styles.bookingHeader}>
+                                <Text style={styles.hotelName} numberOfLines={1}>
+                                    {item.hotelName || item.hotel?.name || 'Hôtel'}
                                 </Text>
+                                <View style={[styles.statusBadge, { backgroundColor: statusConfig.bgColor }]}>
+                                    <Text style={[styles.statusText, { color: statusConfig.color }]}>
+                                        {statusConfig.label}
+                                    </Text>
+                                </View>
+                            </View>
+
+                            <View style={styles.bookingDetails}>
+                                <View style={styles.dateRow}>
+                                    <Ionicons name="calendar-outline" size={14} color="#6B7280" />
+                                    <Text style={styles.dateText}>{dateRange}</Text>
+                                </View>
+                                <Text style={styles.priceText}>{formattedPrice}</Text>
                             </View>
                         </View>
+                    </TouchableOpacity>
 
-                        <View style={styles.bookingDetails}>
-                            <View style={styles.dateRow}>
-                                <Ionicons name="calendar-outline" size={14} color="#6B7280" />
-                                <Text style={styles.dateText}>{dateRange}</Text>
-                            </View>
-                            <Text style={styles.priceText}>{formattedPrice}</Text>
-                        </View>
-                    </View>
-
-                    <TouchableOpacity style={styles.menuButton}>
+                    <TouchableOpacity 
+                        style={styles.menuButton}
+                        onPress={() => {
+                            // Menu functionality can be added here
+                        }}
+                        activeOpacity={0.7}
+                    >
                         <Ionicons name="ellipsis-vertical" size={20} color="#E85D40" />
                     </TouchableOpacity>
-                </TouchableOpacity>
+                </View>
 
                 {showActions && (
                     <View style={styles.actionsContainer}>
@@ -382,13 +396,18 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         backgroundColor: '#FFF',
         borderRadius: 16,
-        padding: 12,
         marginBottom: 12,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.08,
         shadowRadius: 8,
         elevation: 3,
+        overflow: 'hidden',
+    },
+    bookingCardContent: {
+        flexDirection: 'row',
+        flex: 1,
+        padding: 12,
     },
     hotelImage: {
         width: 64,
@@ -442,6 +461,9 @@ const styles = StyleSheet.create({
     },
     menuButton: {
         padding: 4,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingRight: 12,
     },
     actionsContainer: {
         backgroundColor: '#FFF',

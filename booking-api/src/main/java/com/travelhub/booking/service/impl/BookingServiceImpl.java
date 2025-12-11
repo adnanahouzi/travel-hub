@@ -64,8 +64,24 @@ public class BookingServiceImpl implements BookingService {
             PrebookResponse connectorResponse = nuiteeApiClient.prebook(connectorRequest);
             logger.debug("Received prebook response from connector");
 
-            // Map connector response back to booking-api DTO
-            PrebookResponseDto responseDto = bookingMapper.toPrebookResponseDto(connectorResponse);
+            // Get hotel details to enrich room information
+            List<Room> hotelRooms = null;
+            if (connectorResponse != null && connectorResponse.getData() != null && connectorResponse.getData().getHotelId() != null) {
+                try {
+                   HotelDetailsResponse hotelDetailsResponse =
+                            hotelDataService.getHotelDetails(connectorResponse.getData().getHotelId(), "fr");
+                    if (hotelDetailsResponse != null && hotelDetailsResponse.getData() != null) {
+                        hotelRooms = hotelDetailsResponse.getData().getRooms();
+                        logger.debug("Retrieved {} rooms from hotel details", hotelRooms != null ? hotelRooms.size() : 0);
+                    }
+                } catch (Exception e) {
+                    logger.warn("Failed to fetch hotel details for room enrichment: {}", e.getMessage());
+                    // Continue without room enrichment
+                }
+            }
+
+            // Map connector response back to booking-api DTO with hotel room details
+            PrebookResponseDto responseDto = bookingMapper.toPrebookResponseDto(connectorResponse, hotelRooms);
 
             // Create and save booking simulation
             BookingSimulation simulation = new BookingSimulation();

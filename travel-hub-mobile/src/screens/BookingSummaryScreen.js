@@ -248,89 +248,38 @@ export const BookingSummaryScreen = ({ navigation, route }) => {
           return roomType.rates?.map((rate, rateIndex) => {
             if (!rate) return null;
 
-            // Use offerRetailRate (mapped to total) instead of suggestedSellingPrice
-            const ratePrice = rate.retailRate?.total?.[0]?.amount || 0;
-            const rateCurrency = rate.retailRate?.total?.[0]?.currency || 'MAD';
-
-            // Calculate taxes per rate from taxesAndFees
-            let rateIncludedTaxes = 0;
-            let rateExcludedTaxes = 0;
-
-            if (rate.retailRate?.taxesAndFees) {
-              rate.retailRate.taxesAndFees.forEach(tax => {
-                if (tax.amount) {
-                  if (tax.included) {
-                    rateIncludedTaxes += tax.amount;
-                  } else {
-                    rateExcludedTaxes += tax.amount;
-                  }
-                }
-              });
-            }
+            // Get room image from enriched data
+            const roomImage = rate.roomPhotos?.[0]?.url || 'https://images.unsplash.com/photo-1611892440504-42a792e24d32?w=500&q=80';
+            
+            // Get room name (enriched from hotelDetails)
+            const roomName = rate.name || 'Chambre';
+            
+            // Get capacity
+            const totalPersons = (rate.adultCount || 0) + (rate.childCount || 0) || (rate.maxAdults || 0) + (rate.maxChildren || 0) || 2;
+            
+            // Get room size
+            const roomSize = rate.roomSize || 30;
+            const roomSizeUnit = rate.roomSizeUnit || 'm²';
 
             return (
               <View key={`${roomTypeIndex}-${rateIndex}`} style={styles.roomCard}>
+                <Image
+                  source={{ uri: roomImage }}
+                  style={styles.roomImage}
+                  resizeMode="cover"
+                />
                 <View style={styles.roomDetails}>
-                  <Text style={styles.roomName}>{rate.name}</Text>
-
-                  <View style={styles.roomSpecs}>
-                    <Ionicons name="bed-outline" size={14} color="#6B7280" />
-                    <Text style={styles.roomSpecText}>
-                      {(rate.adultCount || 0) + (rate.childCount || 0)} personnes
-                    </Text>
-                    {rate.boardName && (
-                      <>
-                        <View style={styles.specDot} />
-                        <Text style={styles.roomSpecText}>{rate.boardName}</Text>
-                      </>
-                    )}
-                  </View>
-
-                  <View style={styles.rateFinancials}>
-                    <Text style={styles.ratePrice}>
-                      Prix: {new Intl.NumberFormat('fr-MA', { minimumFractionDigits: 2 }).format(ratePrice)} {rateCurrency}
-                    </Text>
-
-                    {/* Taxes - per rate */}
-                    {rateIncludedTaxes > 0 && (
-                      <Text style={styles.taxText}>
-                        Taxes et frais inclus: {new Intl.NumberFormat('fr-MA', { minimumFractionDigits: 2 }).format(rateIncludedTaxes)} {rateCurrency}
-                      </Text>
-                    )}
-                    {rateExcludedTaxes > 0 && (
-                      <Text style={styles.taxText}>
-                        Taxes à payer sur place: {new Intl.NumberFormat('fr-MA', { minimumFractionDigits: 2 }).format(rateExcludedTaxes)} {rateCurrency}
-                      </Text>
-                    )}
-
-                    {/* Cancellation Policy */}
-                    <View style={styles.cancellationContainer}>
-                      {rate.cancellationPolicies?.refundableTag === 'NRFN' ? (
-                        <View style={styles.policyRow}>
-                          <Ionicons name="close-circle-outline" size={14} color="#EF4444" />
-                          <Text style={[styles.policyText, { color: '#EF4444' }]}>Non remboursable</Text>
-                        </View>
-                      ) : (
-                        rate.cancellationPolicies?.cancelPolicyInfos?.length > 0 && (
-                          <View style={styles.policyRow}>
-                            <Ionicons name="checkmark-circle-outline" size={14} color="#059669" />
-                            <Text style={[styles.policyText, { color: '#059669' }]}>
-                              Annulation gratuite avant le {rate.cancellationPolicies.cancelPolicyInfos[0]?.cancelTime ? format(new Date(rate.cancellationPolicies.cancelPolicyInfos[0].cancelTime), 'dd/MM/yyyy') : ''}
-                            </Text>
-                          </View>
-                        )
-                      )}
+                  <Text style={styles.roomName}>{roomName}</Text>
+                  
+                  <View style={styles.roomSpecsRow}>
+                    <View style={styles.roomSpecItem}>
+                      <Ionicons name="bed-outline" size={16} color="#6B7280" />
+                      <Text style={styles.roomSpecText}>{totalPersons} personnes</Text>
                     </View>
-
-                    {/* Reservation Conditions Link */}
-                    {(rate.remarks || termsAndConditions) && (
-                      <TouchableOpacity
-                        onPress={() => openConditionsModal(rate.remarks ? `${rate.remarks}<br/><br/>${termsAndConditions || ''}` : termsAndConditions)}
-                        style={styles.conditionsLinkContainer}
-                      >
-                        <Text style={styles.conditionsLinkText}>Conditions de réservations chambre</Text>
-                      </TouchableOpacity>
-                    )}
+                    <View style={styles.roomSpecItem}>
+                      <Ionicons name="square-outline" size={16} color="#6B7280" />
+                      <Text style={styles.roomSpecText}>{roomSize} {roomSizeUnit}</Text>
+                    </View>
                   </View>
                 </View>
               </View>
@@ -638,27 +587,39 @@ const styles = StyleSheet.create({
     backgroundColor: '#F9FAFB',
     marginHorizontal: 20,
     borderRadius: 20,
-    padding: 16,
-    marginBottom: 24,
+    padding: 12,
+    marginBottom: 16,
+    flexDirection: 'row',
+  },
+  roomImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 12,
+    marginRight: 12,
   },
   roomDetails: {
     flex: 1,
+    justifyContent: 'center',
   },
   roomName: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
     color: '#1F2937',
     marginBottom: 8,
   },
-  roomSpecs: {
+  roomSpecsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    gap: 16,
+  },
+  roomSpecItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   roomSpecText: {
     fontSize: 13,
     color: '#6B7280',
-    marginLeft: 4,
   },
   specDot: {
     width: 4,

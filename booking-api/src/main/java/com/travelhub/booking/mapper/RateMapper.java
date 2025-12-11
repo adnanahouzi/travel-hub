@@ -371,7 +371,7 @@ public class RateMapper {
      * Each RoomType (offer) becomes a GroupedRateDto with its rooms aggregated.
      */
     public List<GroupedRateDto> groupByOffer(
-            List<com.travelhub.connectors.nuitee.dto.response.RoomType> roomTypes, List<Room> hotelRooms, Integer numberOfNights) {
+            List<com.travelhub.connectors.nuitee.dto.response.RoomType> roomTypes, List<com.travelhub.connectors.nuitee.dto.response.Room> hotelRooms, Integer numberOfNights) {
         if (roomTypes == null) {
             return null;
         }
@@ -408,7 +408,7 @@ public class RateMapper {
 
                             // Enrich with room details
                             if (hotelRooms != null && rate.getMappedRoomId() != null) {
-                                Room matchingRoom = hotelRooms.stream()
+                                com.travelhub.connectors.nuitee.dto.response.Room matchingRoom = hotelRooms.stream()
                                         .filter(room -> rate.getMappedRoomId().equals(room.getId().longValue()))
                                         .findFirst()
                                         .orElse(null);
@@ -612,7 +612,7 @@ public class RateMapper {
         }
     }
 
-    private void enrichRateWithRoomDetails(RateDto rateDto, Room room) {
+    public void enrichRateWithRoomDetails(RateDto rateDto, com.travelhub.connectors.nuitee.dto.response.Room room) {
         if (rateDto == null || room == null) {
             return;
         }
