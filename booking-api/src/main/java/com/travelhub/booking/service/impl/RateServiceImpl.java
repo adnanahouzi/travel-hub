@@ -38,12 +38,7 @@ public class RateServiceImpl implements RateService {
                                 request.getPlaceId(), request.getCheckin(), request.getCheckout());
 
                 // STEP 1: Get hotels list based on search criteria
-                HotelsListRequest hotelsListRequest = new HotelsListRequest();
-
-                // TODO use offset later
-                hotelsListRequest.setPlaceId(request.getPlaceId());
-               // hotelsListRequest.setLimit(request.getLimit());
-               // hotelsListRequest.setOffset(request.getOffset());
+                HotelsListRequest hotelsListRequest = rateMapper.toHotelsListRequest(request);
 
                 logger.debug("Fetching hotels list with placeId: {}, limit: {}, offset: {}",
                                 request.getPlaceId(), request.getLimit(), request.getOffset());
@@ -60,7 +55,7 @@ public class RateServiceImpl implements RateService {
                 logger.info("Retrieved {} hotels from hotels list endpoint", hotelsListResponse.getHotelIds().size());
 
                 // STEP 2: Use hotelIds array directly from response (no streaming)
-                java.util.List<String> hotelIds = hotelsListResponse.getHotelIds();
+               List<String> hotelIds = hotelsListResponse.getHotelIds();
 
                 logger.debug("Using {} hotel IDs: {}", hotelIds.size(),
                                 hotelIds.size() <= 5 ? hotelIds : hotelIds.subList(0, 5) + "...");

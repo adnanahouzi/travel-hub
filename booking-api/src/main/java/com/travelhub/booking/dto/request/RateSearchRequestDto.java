@@ -1,5 +1,6 @@
 package com.travelhub.booking.dto.request;
 
+import com.travelhub.booking.dto.common.SortCriteriaDto;
 import com.travelhub.connectors.nuitee.dto.common.Occupancy;
 import java.time.LocalDate;
 import java.util.List;
@@ -8,14 +9,13 @@ import java.math.BigDecimal;
 public class RateSearchRequestDto {
     // Required Fields
     private List<Occupancy> occupancies;
-    private String currency;
-    private String guestNationality;
     private LocalDate checkin;
     private LocalDate checkout;
 
     // Search Methods
     private List<String> hotelIds;
     private String countryCode;
+    private String hotelName;
     private String cityName;
     private BigDecimal latitude;
     private BigDecimal longitude;
@@ -25,21 +25,26 @@ public class RateSearchRequestDto {
     private String aiSearch;
 
     // Filters & Options
-    private Integer timeout;
+
     private Boolean roomMapping;
     private Integer limit;
     private Integer offset;
     private Boolean weatherInfo;
     private Boolean stream;
+    private Boolean refundableRatesOnly;
+    private String boardType;  // RO BB, HB
 
-    private String hotelName;
+
     private Integer minReviewsCount;
     private BigDecimal minRating;
     private String zip;
+    private String feed;
     private List<Integer> starRating;
+    private List<Integer> chainIds;
+    private List<Integer> hotelTypeIds;
     private List<String> facilities;
     private Boolean strictFacilityFiltering;
-    private List<com.travelhub.booking.dto.common.SortCriteriaDto> sort;
+    private List<SortCriteriaDto> sort;
 
     // Getters and Setters
     public List<Occupancy> getOccupancies() {
@@ -50,20 +55,44 @@ public class RateSearchRequestDto {
         this.occupancies = occupancies;
     }
 
-    public String getCurrency() {
-        return currency;
+    public Boolean getRefundableRatesOnly() {
+        return refundableRatesOnly;
     }
 
-    public void setCurrency(String currency) {
-        this.currency = currency;
+    public void setRefundableRatesOnly(Boolean refundableRatesOnly) {
+        this.refundableRatesOnly = refundableRatesOnly;
     }
 
-    public String getGuestNationality() {
-        return guestNationality;
+    public String getBoardType() {
+        return boardType;
     }
 
-    public void setGuestNationality(String guestNationality) {
-        this.guestNationality = guestNationality;
+    public void setBoardType(String boardType) {
+        this.boardType = boardType;
+    }
+
+    public String getFeed() {
+        return feed;
+    }
+
+    public void setFeed(String feed) {
+        this.feed = feed;
+    }
+
+    public List<Integer> getChainIds() {
+        return chainIds;
+    }
+
+    public void setChainIds(List<Integer> chainIds) {
+        this.chainIds = chainIds;
+    }
+
+    public List<Integer> getHotelTypeIds() {
+        return hotelTypeIds;
+    }
+
+    public void setHotelTypeIds(List<Integer> hotelTypeIds) {
+        this.hotelTypeIds = hotelTypeIds;
     }
 
     public LocalDate getCheckin() {
@@ -154,13 +183,6 @@ public class RateSearchRequestDto {
         this.aiSearch = aiSearch;
     }
 
-    public Integer getTimeout() {
-        return timeout;
-    }
-
-    public void setTimeout(Integer timeout) {
-        this.timeout = timeout;
-    }
 
     public Boolean getRoomMapping() {
         return roomMapping;

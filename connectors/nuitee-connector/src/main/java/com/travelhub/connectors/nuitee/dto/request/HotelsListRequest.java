@@ -1,5 +1,7 @@
 package com.travelhub.connectors.nuitee.dto.request;
 
+import java.math.BigDecimal;
+
 public class HotelsListRequest {
 
     private String countryCode;
@@ -8,13 +10,13 @@ public class HotelsListRequest {
     private Integer offset;
     private Integer limit;
     private String lastUpdatedAt;
-    private Double latitude;
-    private Double longitude;
+    private BigDecimal latitude;
+    private BigDecimal longitude;
     private Integer radius; // in meters (min 1000m)
     private String aiSearch;
     private Float timeout;
     private String zip;
-    private Double minRating;
+    private BigDecimal minRating;
     private Integer minReviewsCount;
     private String facilityIds; // Comma-separated
     private String hotelTypeIds; // Comma-separated
@@ -76,19 +78,19 @@ public class HotelsListRequest {
         this.lastUpdatedAt = lastUpdatedAt;
     }
 
-    public Double getLatitude() {
+    public BigDecimal getLatitude() {
         return latitude;
     }
 
-    public void setLatitude(Double latitude) {
+    public void setLatitude(BigDecimal latitude) {
         this.latitude = latitude;
     }
 
-    public Double getLongitude() {
+    public BigDecimal getLongitude() {
         return longitude;
     }
 
-    public void setLongitude(Double longitude) {
+    public void setLongitude(BigDecimal longitude) {
         this.longitude = longitude;
     }
 
@@ -124,11 +126,11 @@ public class HotelsListRequest {
         this.zip = zip;
     }
 
-    public Double getMinRating() {
+    public BigDecimal getMinRating() {
         return minRating;
     }
 
-    public void setMinRating(Double minRating) {
+    public void setMinRating(BigDecimal minRating) {
         this.minRating = minRating;
     }
 

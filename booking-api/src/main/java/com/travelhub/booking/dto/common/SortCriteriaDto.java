@@ -1,8 +1,8 @@
 package com.travelhub.booking.dto.common;
 
 public class SortCriteriaDto {
-    private String field;
-    private String direction;
+    private String field;  //top_picks or price
+    private String direction; // ascending descending
 
     public SortCriteriaDto() {
     }

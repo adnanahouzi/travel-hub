@@ -4,6 +4,7 @@ import com.travelhub.booking.dto.request.RateSearchRequestDto;
 import com.travelhub.booking.dto.response.*;
 import com.travelhub.connectors.nuitee.dto.common.Price;
 import com.travelhub.connectors.nuitee.dto.request.HotelRatesRequest;
+import com.travelhub.connectors.nuitee.dto.request.HotelsListRequest;
 import com.travelhub.connectors.nuitee.dto.response.*;
 import org.springframework.stereotype.Component;
 
@@ -24,8 +25,8 @@ public class RateMapper {
         }
         HotelRatesRequest hotelRatesRequest = new HotelRatesRequest();
         hotelRatesRequest.setOccupancies(request.getOccupancies());
-        hotelRatesRequest.setCurrency(request.getCurrency());
-        hotelRatesRequest.setGuestNationality(request.getGuestNationality());
+        hotelRatesRequest.setCurrency("MAD");
+        hotelRatesRequest.setGuestNationality("MA");
         hotelRatesRequest.setCheckin(request.getCheckin());
         hotelRatesRequest.setCheckout(request.getCheckout());
         hotelRatesRequest.setHotelIds(request.getHotelIds());
@@ -37,7 +38,7 @@ public class RateMapper {
         hotelRatesRequest.setIataCode(request.getIataCode());
         hotelRatesRequest.setPlaceId(request.getPlaceId());
         hotelRatesRequest.setAiSearch(request.getAiSearch());
-        hotelRatesRequest.setTimeout(request.getTimeout());
+        //hotelRatesRequest.setTimeout(request.getTimeout());
         hotelRatesRequest.setRoomMapping(request.getRoomMapping());
         hotelRatesRequest.setWeatherInfo(request.getWeatherInfo());
         hotelRatesRequest.setStream(request.getStream());
@@ -50,6 +51,39 @@ public class RateMapper {
         hotelRatesRequest.setStrictFacilityFiltering(request.getStrictFacilityFiltering());
         hotelRatesRequest.setSort(mapSortCriteria(request.getSort()));
         return hotelRatesRequest;
+    }
+
+
+    public HotelsListRequest toHotelsListRequest(RateSearchRequestDto request) {
+
+        if (request == null) {
+            return null;
+        }
+
+        HotelsListRequest hotelsListRequest = new HotelsListRequest();
+        hotelsListRequest.setPlaceId(request.getPlaceId());
+        hotelsListRequest.setLanguage("fr");
+        hotelsListRequest.setCountryCode("MA");
+        hotelsListRequest.setCityName(request.getCityName());
+        hotelsListRequest.setHotelName(request.getHotelName());
+        // hotelsListRequest.setLimit(request.getLimit());
+        // hotelsListRequest.setOffset(request.getOffset());
+
+        hotelsListRequest.setLatitude(request.getLatitude());
+        hotelsListRequest.setLongitude(request.getLongitude());
+        hotelsListRequest.setRadius(request.getRadius());
+        hotelsListRequest.setAiSearch(request.getAiSearch());
+        hotelsListRequest.setZip(request.getZip());
+        hotelsListRequest.setMinReviewsCount(request.getMinReviewsCount());
+        hotelsListRequest.setMinRating(request.getMinRating());
+        //hotelsListRequest.setFaciliti(request.getFacilities());  // TODO facilityIds string Comma-separated list of facilities. e.g. '1,2,3'
+        //hotelsListRequest.setHotelTypeIds();  // TODO hotelTypeIds
+        //hotelsListRequest.setChainIds();  // TODO hotelTypeIds
+        hotelsListRequest.setStrictFacilitiesFiltering(request.getStrictFacilityFiltering());
+        //hotelsListRequest.setStarRating(request.getStarRating());  // TODO Comma-separated list of star ratings. Note: star ratings have 2 allowed decimals '.0' and '.5' from 1 to 5. e.g. '3.5,4.0,5.0'
+        // hotelsListRequest.setHotelIds();  // todo Comma-separated list of hotel IDs (e.g., 'lp1897,lp1343') to fetch specific hotels by their IDs. This is a valid main query parameter that can be used instead of other search criteria.
+
+        return hotelsListRequest;
     }
 
     private List<com.travelhub.connectors.nuitee.dto.common.SortCriteria> mapSortCriteria(
@@ -660,5 +694,7 @@ public class RateMapper {
             com.travelhub.connectors.nuitee.dto.response.BookResponse.RoomBooked.BookRetailRateDetail bookRetailRateDetail) {
         return mapBookRetailRateDetail(bookRetailRateDetail, null);
     }
+
+
 }
 
